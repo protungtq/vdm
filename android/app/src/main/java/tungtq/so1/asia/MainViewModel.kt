@@ -38,6 +38,10 @@ data class VdmUiState(
     val showDownloadedFiles: Boolean = false,
     val showCookiePlatforms: Boolean = false,
     val cookieWebViewPlatform: CookiePlatform? = null,
+    /** Link Douyin quét lỗi, chờ thử đường dự phòng qua trình duyệt. */
+    val douyinFallbackUrl: String? = null,
+    /** Link trang video Douyin đang mở trong WebView lấy link. */
+    val douyinWebViewUrl: String? = null,
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -100,6 +104,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     scanned = null,
                     preview = null,
                     showImageViewer = false,
+                    douyinFallbackUrl = null,
                 )
             }
             try {
@@ -126,6 +131,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     it.copy(
                         scanning = false,
                         message = "Không quét được link này: $raw$hint",
+                        douyinFallbackUrl = directUrl.takeIf { isDouyinUrl(it) },
                     )
                 }
             }
@@ -283,6 +289,60 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun clearMessage() {
-        _uiState.update { it.copy(message = null) }
+        _uiState.update { it.copy(message = null, douyinFallbackUrl = null) }
+    }
+
+    /** Mở trang video Douyin trong trình duyệt của app để lấy link trực tiếp. */
+    fun openDouyinWebView() {
+        val url = _uiState.value.douyinFallbackUrl ?: return
+        viewModelScope.launch {
+            val resolved = Downloader.resolveUrl(url)
+            _uiState.update { it.copy(douyinWebViewUrl = resolved) }
+        }
+    }
+
+    fun closeDouyinWebView() {
+        _uiState.update { it.copy(douyinWebViewUrl = null) }
+    }
+
+    /** WebView đã lấy được link video trực tiếp: dựng kết quả quét để tải như thường. */
+    fun onDouyinVideoFound(directUrl: String, pageTitle: String?) {
+        val state = _uiState.value
+        val referer = "https://www.douyin.com/"
+        val option = VideoFormatOption(
+            formatSpec = Downloader.DIRECT_SPEC,
+            label = "Video (tải trực tiếp)",
+            sizeLabel = null,
+            directUrl = directUrl,
+            referer = referer,
+        )
+        _uiState.update {
+            it.copy(
+                douyinWebViewUrl = null,
+                douyinFallbackUrl = null,
+                message = null,
+                urlText = state.douyinWebViewUrl ?: state.urlText,
+                scanned = ScannedVideo(
+                    title = pageTitle?.takeIf { t -> t.isNotBlank() } ?: "Video Douyin",
+                    webpageUrl = state.douyinWebViewUrl,
+                    options = listOf(option),
+                    previewVideo = PreviewMedia(
+                        url = directUrl,
+                        headers = mapOf("Referer" to referer),
+                        mimeType = "video/mp4",
+                    ),
+                    viaFallback = true,
+                ),
+                selectedSpec = Downloader.DIRECT_SPEC,
+            )
+        }
+    }
+
+    private fun isDouyinUrl(url: String): Boolean {
+        return try {
+            java.net.URL(url).host.lowercase().endsWith("douyin.com")
+        } catch (_: Exception) {
+            url.lowercase().contains("douyin.com")
+        }
     }
 }

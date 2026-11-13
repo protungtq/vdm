@@ -27,6 +27,8 @@ data class VideoFormatOption(
     val isAudioOnly: Boolean = false,
     /** Link file trực tiếp (nguồn dự phòng): có thì tải thẳng, không qua yt-dlp. */
     val directUrl: String? = null,
+    /** Referer gửi kèm khi tải trực tiếp (một số CDN như Douyin yêu cầu). */
+    val referer: String? = null,
 )
 
 /** Nội dung xem trước/nghe thử sau khi quét: link trực tiếp + header cần kèm khi mở. */
@@ -58,7 +60,9 @@ object Downloader {
     const val PROCESS_ID = "vdm-download"
 
     private const val TAG = "VDM"
-    private const val CHROME_UA =
+
+    /** User-Agent Chrome trên điện thoại, dùng cho cả HTTP trực tiếp lẫn WebView. */
+    internal const val CHROME_UA =
         "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
 
     @Volatile
@@ -141,6 +145,11 @@ object Downloader {
             previewVideo = buildPreviewVideo(formats),
             previewAudio = buildPreviewAudio(formats),
         )
+    }
+
+    /** Mở rộng link rút gọn thành link đầy đủ (dùng khi mở trang video trong WebView). */
+    suspend fun resolveUrl(url: String): String = withContext(Dispatchers.IO) {
+        resolveRedirects(url)
     }
 
     private fun isTikTokUrl(url: String): Boolean {
@@ -445,7 +454,7 @@ object Downloader {
         if (!dir.exists()) dir.mkdirs()
         val directUrl = option.directUrl
         if (!directUrl.isNullOrBlank()) {
-            downloadDirect(directUrl, dir, option.isAudioOnly, onProgress)
+            downloadDirect(directUrl, dir, option.isAudioOnly, option.referer, onProgress)
             // Trả về response rỗng để giữ nguyên chữ ký hàm cho DownloadService.
             return@withContext YoutubeDLResponse(emptyList(), 0, 0L, "", "")
         }
@@ -476,6 +485,7 @@ object Downloader {
         fileUrl: String,
         dir: File,
         isAudio: Boolean,
+        referer: String?,
         onProgress: (Float, Long) -> Unit,
     ) {
         val connection = URL(fileUrl).openConnection() as HttpURLConnection
@@ -483,6 +493,9 @@ object Downloader {
         connection.connectTimeout = 15_000
         connection.readTimeout = 60_000
         connection.setRequestProperty("User-Agent", CHROME_UA)
+        if (!referer.isNullOrBlank()) {
+            connection.setRequestProperty("Referer", referer)
+        }
         try {
             val code = connection.responseCode
             if (code !in 200..299) throw Exception("Tải trực tiếp thất bại (HTTP $code)")

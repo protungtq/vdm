@@ -201,6 +201,15 @@ fun VdmApp(viewModel: MainViewModel) {
             )
             return@MaterialTheme
         }
+        val douyinUrl = uiState.douyinWebViewUrl
+        if (douyinUrl != null) {
+            DouyinWebViewScreen(
+                videoUrl = douyinUrl,
+                onVideoFound = viewModel::onDouyinVideoFound,
+                onClose = viewModel::closeDouyinWebView,
+            )
+            return@MaterialTheme
+        }
         Scaffold(
             topBar = {
                 TopAppBar(
@@ -412,9 +421,21 @@ fun VdmApp(viewModel: MainViewModel) {
                 }
 
                 uiState.message?.let { message ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(message, modifier = Modifier.weight(1f))
-                        TextButton(onClick = { viewModel.clearMessage() }) { Text("Đóng") }
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(message, modifier = Modifier.weight(1f))
+                            TextButton(onClick = { viewModel.clearMessage() }) { Text("Đóng") }
+                        }
+                        if (uiState.douyinFallbackUrl != null) {
+                            OutlinedButton(
+                                onClick = { viewModel.openDouyinWebView() },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Icon(Icons.Default.OpenInNew, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("Thử lấy link qua trình duyệt")
+                            }
+                        }
                     }
                 }
 

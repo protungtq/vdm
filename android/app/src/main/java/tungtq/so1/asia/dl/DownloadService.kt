@@ -37,6 +37,7 @@ class DownloadService : Service() {
         val label = intent.getStringExtra(EXTRA_LABEL) ?: ""
         val isAudio = intent.getBooleanExtra(EXTRA_IS_AUDIO, false)
         val directUrl = intent.getStringExtra(EXTRA_DIRECT_URL)
+        val referer = intent.getStringExtra(EXTRA_REFERER)
         val title = intent.getStringExtra(EXTRA_TITLE) ?: url
 
         val notification = buildNotification(title, 0f, true)
@@ -53,7 +54,7 @@ class DownloadService : Service() {
 
         scope.launch {
             try {
-                val option = VideoFormatOption(formatSpec, label, null, isAudio, directUrl)
+                val option = VideoFormatOption(formatSpec, label, null, isAudio, directUrl, referer)
                 Downloader.download(url, option) { progress, eta ->
                     DownloadState.update(progress, eta)
                     maybeUpdateNotification(title, progress)
@@ -134,6 +135,7 @@ class DownloadService : Service() {
         const val EXTRA_LABEL = "extra_label"
         const val EXTRA_IS_AUDIO = "extra_is_audio"
         const val EXTRA_DIRECT_URL = "extra_direct_url"
+        const val EXTRA_REFERER = "extra_referer"
         const val EXTRA_TITLE = "extra_title"
 
         fun start(context: Context, url: String, option: VideoFormatOption, title: String) {
@@ -143,6 +145,7 @@ class DownloadService : Service() {
                 putExtra(EXTRA_LABEL, option.label)
                 putExtra(EXTRA_IS_AUDIO, option.isAudioOnly)
                 putExtra(EXTRA_DIRECT_URL, option.directUrl)
+                putExtra(EXTRA_REFERER, option.referer)
                 putExtra(EXTRA_TITLE, title)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
