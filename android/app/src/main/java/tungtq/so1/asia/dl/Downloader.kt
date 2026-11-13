@@ -1,10 +1,10 @@
 package tungtq.so1.asia.dl
 
 import android.os.Environment
-import com.yausername.youtubedl_android.DownloadProgressCallback
 import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
 import com.yausername.youtubedl_android.YoutubeDLResponse
+import com.yausername.youtubedl_android.mapper.VideoFormat
 import com.yausername.youtubedl_android.mapper.VideoInfo
 import java.io.File
 import java.util.regex.Pattern
@@ -63,7 +63,7 @@ object Downloader {
         ScannedVideo(
             title = info.title ?: url,
             uploader = info.uploader,
-            durationSeconds = info.duration,
+            durationSeconds = info.duration.takeIf { it > 0 }?.toLong(),
             thumbnailUrl = info.thumbnail,
             webpageUrl = info.webpageUrl,
             options = buildOptions(info),
@@ -77,26 +77,32 @@ object Downloader {
 
         // Video: mỗi độ cao (1080, 720...) chỉ giữ 1 lựa chọn tốt nhất, ưu tiên mp4 có sẵn âm thanh.
         val videoFormats = formats
-            .filter { (it.height ?: 0) > 0 && it.vcodec != null && it.vcodec != "none" }
+            .filter { it.height > 0 && it.vcodec != null && it.vcodec != "none" }
             .sortedWith(
-                compareByDescending<com.yausername.youtubedl_android.mapper.Format> { it.height ?: 0 }
-                    .thenByDescending { it.filesize ?: 0L },
+                compareByDescending<VideoFormat> { it.height }
+                    .thenByDescending { it.fileSize },
             )
         for (format in videoFormats) {
-            val height = format.height ?: 0
+            val formatId = format.formatId ?: continue
+            val height = format.height
             if (!seenHeights.add(height)) continue
             val hasAudio = format.acodec != null && format.acodec != "none"
             val spec = if (hasAudio) {
-                format.formatId
+                formatId
             } else {
                 // Video rời + âm thanh tốt nhất, FFmpeg tự gộp lại thành 1 file.
-                "${format.formatId}+bestaudio/best"
+                "$formatId+bestaudio/best"
+            }
+            val sizeBytes = if (format.fileSize > 0) {
+                format.fileSize
+            } else {
+                format.fileSizeApproximate
             }
             options += VideoFormatOption(
                 formatSpec = spec,
                 label = "${height}p · ${format.ext?.uppercase() ?: "MP4"}" +
                     if (hasAudio) "" else " (gộp âm thanh)",
-                sizeLabel = formatSizeLabel(format.filesize),
+                sizeLabel = formatSizeLabel(sizeBytes.takeIf { it > 0 }),
             )
         }
 
@@ -145,15 +151,10 @@ object Downloader {
             // aria2c tải đa kết nối cho nhanh, giống bản desktop.
             addOption("--downloader", "libaria2c.so")
         }
-        YoutubeDL.getInstance().execute(
-            request,
-            object : DownloadProgressCallback {
-                override fun onProgressUpdate(progress: Float, etaInSeconds: Long) {
-                    onProgress(progress, etaInSeconds)
-                }
-            },
-            PROCESS_ID,
-        )
+        // execute() nhận callback dạng lambda (tiến trình %, số giây còn lại, trạng thái).
+        YoutubeDL.getInstance().execute(request, PROCESS_ID) { progress, etaInSeconds, _ ->
+            onProgress(progress, etaInSeconds)
+        }
     }
 
     /** Hủy lượt tải đang chạy (nếu có). */

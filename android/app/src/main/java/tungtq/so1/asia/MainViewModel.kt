@@ -4,7 +4,6 @@ import android.app.Application
 import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.yausername.youtubedl_android.UpdateChannel
 import com.yausername.youtubedl_android.YoutubeDL
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -125,14 +124,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             _uiState.update { it.copy(updatingEngine = true, message = null) }
             try {
-                withContext(Dispatchers.IO) {
+                val status = withContext(Dispatchers.IO) {
                     YoutubeDL.getInstance().updateYoutubeDL(
                         getApplication(),
-                        UpdateChannel.STABLE,
+                        YoutubeDL.UpdateChannel.STABLE,
                     )
                 }
+                val alreadyLatest = status == YoutubeDL.UpdateStatus.ALREADY_UP_TO_DATE
                 _uiState.update {
-                    it.copy(updatingEngine = false, message = "Bộ quét đã lên bản mới nhất.")
+                    it.copy(
+                        updatingEngine = false,
+                        message = if (alreadyLatest) {
+                            "Bộ quét đã là bản mới nhất rồi."
+                        } else {
+                            "Bộ quét đã lên bản mới nhất."
+                        },
+                    )
                 }
             } catch (e: Exception) {
                 _uiState.update {
