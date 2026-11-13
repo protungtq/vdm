@@ -5,6 +5,7 @@ import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.provider.DocumentsContract
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.yausername.youtubedl_android.YoutubeDL
@@ -33,6 +34,7 @@ data class VdmUiState(
     val engineError: String? = null,
     val preview: PreviewMedia? = null,
     val showImageViewer: Boolean = false,
+    val showDownloadedFiles: Boolean = false,
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -221,6 +223,34 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun closeImageViewer() {
         _uiState.update { it.copy(showImageViewer = false) }
+    }
+
+    fun openDownloadedFiles() {
+        _uiState.update { it.copy(showDownloadedFiles = true) }
+    }
+
+    fun closeDownloadedFiles() {
+        _uiState.update { it.copy(showDownloadedFiles = false) }
+    }
+
+    /**
+     * Thử mở thư mục Download/VDM trong trình quản lý file của máy.
+     * Trả về false nếu máy không có app nào nhận mở thư mục kiểu này.
+     */
+    fun openFolderExternal(context: Context): Boolean {
+        val uri = Uri.parse(
+            "content://com.android.externalstorage.documents/document/primary:Download/VDM",
+        )
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, DocumentsContract.Document.MIME_TYPE_DIR)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        return try {
+            context.startActivity(intent)
+            true
+        } catch (e: ActivityNotFoundException) {
+            false
+        }
     }
 
     fun clearMessage() {

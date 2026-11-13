@@ -34,6 +34,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -174,6 +175,13 @@ fun VdmApp(viewModel: MainViewModel) {
                 title = uiState.scanned?.title ?: "",
                 onClose = viewModel::closePreview,
                 onOpenExternal = { viewModel.openExternalPlayer(context) },
+            )
+            return@MaterialTheme
+        }
+        if (uiState.showDownloadedFiles) {
+            DownloadedFilesScreen(
+                viewModel = viewModel,
+                onClose = viewModel::closeDownloadedFiles,
             )
             return@MaterialTheme
         }
@@ -402,19 +410,33 @@ fun VdmApp(viewModel: MainViewModel) {
                     Column(Modifier.padding(16.dp)) {
                         Text("File sẽ lưu trong thư mục Download/VDM trên điện thoại.")
                         Spacer(Modifier.height(8.dp))
-                        OutlinedButton(
-                            onClick = { viewModel.updateEngine() },
-                            enabled = !uiState.updatingEngine && uiState.engineReady,
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            Icon(Icons.Default.Refresh, contentDescription = null)
-                            Spacer(Modifier.width(8.dp))
-                            Text(
-                                if (uiState.updatingEngine) {
-                                    "Đang cập nhật bộ quét…"
-                                } else {
-                                    "Cập nhật bộ quét (yt-dlp)"
-                                },
-                            )
+                            OutlinedButton(
+                                onClick = { viewModel.openDownloadedFiles() },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Icon(Icons.Default.FolderOpen, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text("File đã tải")
+                            }
+                            OutlinedButton(
+                                onClick = { viewModel.updateEngine() },
+                                enabled = !uiState.updatingEngine && uiState.engineReady,
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Icon(Icons.Default.Refresh, contentDescription = null)
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    if (uiState.updatingEngine) {
+                                        "Đang cập nhật…"
+                                    } else {
+                                        "Cập nhật bộ quét"
+                                    },
+                                )
+                            }
                         }
                         Spacer(Modifier.height(8.dp))
                         Text(

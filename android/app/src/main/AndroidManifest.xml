@@ -41,5 +41,15 @@
             android:name=".dl.DownloadService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+        <!-- Chia sẻ file trong Download/VDM cho app khác mở (màn hình File đã tải) -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="tungtq.so1.asia.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
     </application>
 </manifest>
