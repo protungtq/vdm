@@ -1,6 +1,6 @@
 <div align="center">
 
-[English](README.md) · **فارسی**
+[English](README.md) · [Tiếng Việt](README.vi.md) · **فارسی**
 
 <img src="src/renderer/assets/icons/logo.svg" width="96" alt="لوگوی VDM" />
 

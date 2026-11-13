@@ -1,6 +1,6 @@
 <div align="center">
 
-**English** · [فارسی](README.fa.md)
+**English** · [Tiếng Việt](README.vi.md) · [فارسی](README.fa.md)
 
 <img src="src/renderer/assets/icons/logo.svg" width="96" alt="VDM logo" />
 
@@ -187,7 +187,7 @@ You need [Node.js](https://nodejs.org) 20 or newer.
 
 ```bash
 git clone https://github.com/protungtq/vdm.git
-cd vn-download-manager
+cd vdm
 npm install
 npm start          # run the app
 npm test           # engine and video-pipeline tests (local test server, no internet needed)
