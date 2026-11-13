@@ -283,6 +283,12 @@ fun VdmApp(viewModel: MainViewModel) {
                                 Spacer(Modifier.height(12.dp))
                             }
                             Text(scanned.title, fontWeight = FontWeight.Bold)
+                            if (scanned.viaFallback) {
+                                Text(
+                                    "Đang dùng nguồn dự phòng, vì bộ quét chính không đọc được link này.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                            }
                             val meta = listOfNotNull(
                                 scanned.uploader,
                                 scanned.durationSeconds?.let { formatDuration(it) },
