@@ -1,0 +1,148 @@
+# Builds VDM and attaches the installers to a GitHub release.
+#  - Pushing a version tag (git tag v0.1.2 && git push origin v0.1.2) creates the release by itself,
+#    using docs/release-notes/v0.1.2.md as its text when that file exists, then builds and attaches
+#    the Windows and Mac versions.
+#  - Publishing a release by hand on GitHub does the same builds.
+#  - "Run workflow" on the Actions tab builds the chosen branch (normally main) and attaches the files to an
+#    existing release, e.g. to add the Mac version to v0.1.0. "links" only refreshes the fixed-name copies.
+#  - Every release also gets copies with fixed names (VDM-Setup.exe, VDM-Portable.exe, VDM-mac-arm64.dmg,
+#    VDM-mac-x64.dmg), so .../releases/latest/download/<name> always downloads the newest version.
+name: Build release
+
+on:
+  push:
+    tags: ['v*']
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to build and attach files to (for example v0.1.0)
+        required: true
+      platforms:
+        description: Which versions to build
+        type: choice
+        options: [mac, windows, both, links]
+        default: both
+
+permissions:
+  contents: write
+
+jobs:
+  # Tag pushes only: create the release. If it already exists (someone published it by hand, which
+  # also creates the tag), the "release" event is building it, so this run builds nothing.
+  release:
+    runs-on: ubuntu-latest
+    outputs:
+      build: ${{ steps.create.outputs.build }}
+    steps:
+      - uses: actions/checkout@v4
+        if: github.event_name == 'push'
+      - name: Create the release
+        id: create
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if [ "${{ github.event_name }}" != "push" ]; then echo "build=yes" >> "$GITHUB_OUTPUT"; exit 0; fi
+          version=$(node -p "require('./package.json').version")
+          if [ "v$version" != "$TAG" ]; then
+            echo "::error::Tag $TAG does not match the version in package.json ($version)"; exit 1
+          fi
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "Release $TAG already exists; its own workflow run builds it."; echo "build=no" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          notes="docs/release-notes/$TAG.md"
+          if [ -f "$notes" ]; then
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "VDM ${TAG#v}" --notes-file "$notes" --verify-tag
+          else
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --title "VDM ${TAG#v}" --generate-notes --verify-tag
+          fi
+          echo "build=yes" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: release
+    if: needs.release.outputs.build == 'yes'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: mac
+            command: npx electron-builder --mac dmg --x64 --arm64 --publish never
+            files: dist/*.dmg
+          - os: windows-latest
+            platform: windows
+            command: npx electron-builder --win nsis portable --x64 --publish never
+            files: dist/*.exe
+    runs-on: ${{ matrix.os }}
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
+      WANT: ${{ inputs.platforms || 'both' }}
+    steps:
+      - name: Skip platforms that were not asked for
+        id: want
+        shell: bash
+        run: |
+          if [ "$WANT" = "both" ] || [ "$WANT" = "${{ matrix.platform }}" ]; then echo "run=yes" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: actions/checkout@v4
+        if: steps.want.outputs.run == 'yes'
+        with:
+          # a release builds its own tag; a tag push builds that tag; "Run workflow" builds the branch it was started from
+          ref: ${{ github.event.release.tag_name || github.ref }}
+
+      - uses: actions/setup-node@v4
+        if: steps.want.outputs.run == 'yes'
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        if: steps.want.outputs.run == 'yes'
+        run: npm ci
+
+      - name: Test
+        if: steps.want.outputs.run == 'yes' && matrix.platform == 'mac'
+        run: npm test
+
+      - name: Build
+        if: steps.want.outputs.run == 'yes'
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: ${{ matrix.command }}
+
+      - name: Attach to the release
+        if: steps.want.outputs.run == 'yes'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" ${{ matrix.files }} --clobber --repo "$GITHUB_REPOSITORY"
+
+  # Copies with fixed names for the README's download buttons (…/releases/latest/download/VDM-Setup.exe).
+  links:
+    needs: [release, build]
+    if: always() && needs.release.outputs.build == 'yes' && needs.build.result != 'failure'
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
+    steps:
+      - name: Attach fixed-name copies
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir in out
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir in --pattern 'VDM-*'
+          for f in in/*; do
+            n=$(basename "$f")
+            case "$n" in
+              VDM-Setup-*.exe) cp "$f" out/VDM-Setup.exe ;;
+              VDM-Portable-*.exe) cp "$f" out/VDM-Portable.exe ;;
+              VDM-*-mac-arm64.dmg) cp "$f" out/VDM-mac-arm64.dmg ;;
+              VDM-*-mac-x64.dmg) cp "$f" out/VDM-mac-x64.dmg ;;
+            esac
+          done
+          ls -la out
+          gh release upload "$TAG" out/* --clobber --repo "$GITHUB_REPOSITORY"
