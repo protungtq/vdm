@@ -35,6 +35,16 @@ Multi-connection downloads · Video grabber for YouTube, X and 1000+ sites · Qu
 
 ---
 
+## Android version
+
+A lightweight Android companion lives in [`android/`](android/): share a link
+from Facebook, YouTube, TikTok or any browser, pick a quality, and VDM
+downloads the video. It is built with yt-dlp + FFmpeg + aria2c and is licensed
+separately under GPL-3.0 (see [`android/LICENSE`](android/LICENSE)); the
+desktop app above stays MIT.
+
+---
+
 ## Why VDM?
 
 - **Clean and minimal.** One window, one list. No ads, no banners, no menus full of options you never use.
