@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+    <title>Downloading</title>
+    <link rel="stylesheet" href="styles/base.css" />
+    <link rel="stylesheet" href="styles/themes.css" />
+    <link rel="stylesheet" href="styles/dialog.css" />
+  </head>
+  <body class="dialog">
+    <header class="titlebar">
+      <img class="tb-icon" src="assets/icons/logo.svg" alt="" />
+      <span class="tb-title" id="title">Downloading</span>
+    </header>
+
+    <!-- Download window (580×208, details expand below) -->
+    <div class="page pane" id="pane">
+      <img class="at" id="cat" src="assets/categories/other-max.svg" alt="" style="left: 24px; top: 29px; width: 50px; height: 32px" />
+      <div class="at dl-name" id="name" style="left: 86px; top: 35px; right: 24px"></div>
+
+      <div class="at bar big-bar" id="bar" style="left: 24px; top: 78px; width: 532px"><div class="fill" id="fill"></div></div>
+      <div class="at dl-meta speed" id="speed" style="left: 24px; top: 106px"></div>
+      <div class="at dl-meta eta" id="eta" style="top: 106px"></div>
+      <div class="at dl-meta" id="size" style="right: 24px; top: 106px"></div>
+
+      <button class="btn btn-outline blue at" id="toggle" style="left: 24px; top: 146px"></button>
+      <button class="btn btn-secondary at" id="cancel" style="top: 146px"><img src="assets/icons/btn-x.svg" alt="" /><span>Cancel</span></button>
+      <button class="btn btn-primary at" id="openFile" style="left: 24px; top: 146px" hidden><img src="assets/icons/btn-play.svg" alt="" style="filter: brightness(0) invert(1)" /><span>Open</span></button>
+      <button class="btn btn-outline at" id="openFolder" style="top: 146px" hidden><img src="assets/icons/folder.svg" alt="" /><span>Open folder</span></button>
+      <button class="btn-link at" id="detailsBtn" style="right: 20px; top: 151px">
+        <span>Details</span>
+        <img src="assets/icons/chevron-down.svg" alt="" class="only-light" /><img src="assets/icons/chevron-down-dark.svg" alt="" class="only-dark" />
+      </button>
+
+      <div class="details" id="details" hidden>
+        <div class="det-head">
+          <label>Connections <select class="field" id="connSel"></select></label>
+          <label>Speed limit <select class="field" id="limitSel"></select></label>
+          <span class="muted" id="resumeInfo"></span>
+        </div>
+        <div class="seg-caption"><span>Start positions and progress by connections</span><span id="segCount"></span></div>
+        <canvas class="segmap" id="segmap" width="1064" height="28"></canvas>
+        <div class="conn-table" id="connTable"></div>
+      </div>
+    </div>
+
+    <script src="../shared/i18n.js"></script>
+    <script src="common.js"></script>
+    <script src="progress.js"></script>
+  </body>
+</html>

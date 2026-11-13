@@ -1,0 +1,49 @@
+{
+  "manifest_version": 3,
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAwZEP/x3pFthhF/5e3ZOLrwLUXRnYx+r7T+4XJIqlZ0xT4bb5Aa/JDKj3VgBjyYzy8PFZzorZIOh7M8JFRQTQ2KD9Rn33XwptCafcxO/pkMpcsAOCQlDolkAJQs1LUqUeLpmjQro8Z7vIuR08x6JPFiHgpVhncbGY3tPy3+VjGQikvLqAfvVOe/jKdt1bQYAQVH7zKGI39i4amaZNrSs/dYA3iLJrc2jKwADWUAtWb+aVkcXe6Ia8JLdOoyzbieFnfo9OyvcLD3x1mgCRUDoAtRABw09vXwMfKBgfWFCsgWzURA2/I+7ZcT7ES35MWVkK5KMVhC/l6YMVA5fCfFao+wIDAQAB",
+  "name": "VDM — VN Download Manager",
+  "short_name": "VDM",
+  "version": "0.2.0",
+  "description": "Sends your browser downloads to VN Download Manager (VDM): multi-connection, resume, scheduling.",
+  "permissions": [
+    "downloads",
+    "contextMenus",
+    "cookies",
+    "storage",
+    "scripting",
+    "activeTab",
+    "webRequest"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "VN Download Manager",
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/16.png",
+      "32": "icons/32.png"
+    }
+  },
+  "icons": {
+    "16": "icons/16.png",
+    "32": "icons/32.png",
+    "48": "icons/48.png",
+    "128": "icons/128.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "<all_urls>"
+      ],
+      "js": [
+        "grabber.js"
+      ],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ]
+}

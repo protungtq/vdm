@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="270" height="56" viewBox="0 0 270 56" role="img" aria-label="دانلود برای ویندوز">
+<defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a9bff"/><stop offset="1" stop-color="#1678e6"/></linearGradient></defs>
+<rect width="270" height="56" rx="12" fill="url(#g)"/>
+<rect x=".5" y=".5" width="269" height="55" rx="11.5" fill="none" stroke="#fff" stroke-opacity=".14"/>
+<g transform="translate(224 16)" fill="#fff"><rect width="11" height="11" rx="1.5"/><rect x="13" width="11" height="11" rx="1.5"/><rect y="13" width="11" height="11" rx="1.5"/><rect x="13" y="13" width="11" height="11" rx="1.5"/></g>
+<g font-family="Vazirmatn, Tahoma, 'Segoe UI', sans-serif" fill="#fff" text-anchor="start" direction="rtl">
+<text x="210" y="26" font-size="16" font-weight="700">دانلود برای ویندوز</text>
+<text x="210" y="44" font-size="12" fill-opacity=".82">ویندوز ۱۰ و ۱۱ · نسخه‌ی نصبی</text>
+</g>
+</svg>

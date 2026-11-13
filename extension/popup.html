@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <img src="icons/32.png" alt="" />
+      <div>
+        <div class="title">VN Download Manager</div>
+        <div class="status" id="status"><span class="dot"></span><span id="statusText">Checking…</span></div>
+      </div>
+    </header>
+    <label class="row">
+      <span>Capture browser downloads</span>
+      <span class="switch"><input type="checkbox" id="enabled" /><span></span></span>
+    </label>
+    <label class="row">
+      <span>Skip files smaller than</span>
+      <select id="minSize">
+        <option value="0">Capture all</option>
+        <option value="512">512 KB</option>
+        <option value="1024">1 MB</option>
+        <option value="5120">5 MB</option>
+        <option value="20480">20 MB</option>
+      </select>
+    </label>
+    <section class="videos">
+      <div class="v-head"><span>Videos on this page</span><span class="v-count" id="vCount">0</span></div>
+      <button id="grabVideo">Download video from this page</button>
+      <div class="v-list" id="vList"></div>
+    </section>
+    <button id="grab" class="secondary">Download all links on this page</button>
+    <p class="hint">Right-click any link → “Download with VDM”.</p>
+    <script src="popup.js"></script>
+  </body>
+</html>

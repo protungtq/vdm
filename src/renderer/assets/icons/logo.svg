@@ -1,0 +1,12 @@
+<svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+<rect width="28" height="28" rx="8" fill="url(#vdm_grad)"/>
+<path d="M14 5.5v11" stroke="white" stroke-width="2.6" stroke-linecap="round"/>
+<path d="M8.5 11.5L14 17l5.5-5.5" stroke="white" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+<path d="M6.5 21.5h15" stroke="white" stroke-width="2.6" stroke-linecap="round"/>
+<defs>
+<linearGradient id="vdm_grad" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+<stop stop-color="#F87171"/>
+<stop offset="1" stop-color="#DC2626"/>
+</linearGradient>
+</defs>
+</svg>

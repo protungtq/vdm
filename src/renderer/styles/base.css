@@ -1,0 +1,278 @@
+/* ------------------------------------------------------------------
+   Design tokens — values taken from the Figma file (Light / Dark Mode)
+   ------------------------------------------------------------------ */
+/* Manrope (variable, OFL) — bundled so the app looks the same on every PC. */
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: block;
+  src: url('../fonts/manrope-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Manrope';
+  font-style: normal;
+  font-weight: 200 800;
+  font-display: block;
+  src: url('../fonts/manrope-latin-ext-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+:root,
+.theme-preview[data-t='light'] {
+  color-scheme: light;
+  --bg: #f6f6f6;
+  --surface: #ffffff;
+  --field: #fdfdfd;
+  --stroke: #e1e1e1;
+  --line: #ebebeb;
+  --text: #191919;
+  --text-2: #5f5f5f;
+  --text-3: #b5b5b5;
+  --nav-text: #5f5f5f;
+  --nav-active: #0466c8;
+  --icon: #afafaf;
+  --primary: #0466c8;
+  --blue: #1e83f1;
+  --blue-btn: #158aff;
+  --link: #1e83f1;
+  --green: #12be42;
+  --green-text: #12be42;
+  --red: #fe3440;
+  --track: #ececec;
+  --paused: #b5b5b5;
+  --hover: #f5f5f5;
+  --select: #ececec;
+  --btn2-bg: #f5f5f5;
+  --btn2-text: #5f5f5f;
+  --outline-bg: transparent;
+  --title-bg: #ffffff;
+  --title-text: rgba(0, 0, 0, 0.8956);
+  --title-line: #e1e1e1;
+  --card-shadow: -5px 5px 30px rgba(0, 0, 0, 0.05);
+  --menu-shadow: 0 8px 28px rgba(0, 0, 0, 0.14), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  --btn-edge: rgba(255, 255, 255, 0.1); /* white edge on primary buttons (10%) */
+  --btn-ring: #158aff;
+  --btn3d: 0 0 0 1px var(--btn-ring), 0 0 0 3px rgba(0, 0, 0, 0.05), 0 2px 8px rgba(0, 0, 0, 0.25), inset 0 10px 15px rgba(255, 255, 255, 0.2);
+  --bg-image: none;
+  --accent-filter: none;
+  /* sidebar icons (Figma): idle grey, selected blue */
+  --nav-ic-bg: #d9d9d9;
+  --nav-ic-fg: #717171;
+  --nav-on-bg: #a4daff;
+  --nav-on-a: #0466c8;
+  --nav-on-b: #158aff;
+  --scroll: rgba(0, 0, 0, 0.16);
+  --font: 'Manrope', 'Segoe UI Variable Text', 'Segoe UI', Tahoma, system-ui, sans-serif;
+  --font-ui: var(--font);
+}
+
+:root[data-base='dark'] { color-scheme: dark; }
+:root[data-theme='dark'],
+.theme-preview[data-t='dark'] {
+  color-scheme: dark;
+  --bg-image: none;
+  --bg: #141218;
+  --surface: #211f26;
+  --field: #2a282f;
+  --stroke: #423e4b;
+  --line: #434343;
+  --text: #ffffff;
+  --text-2: #ececec;
+  --text-3: #b5b5b5;
+  --nav-text: #b5b5b5;
+  --nav-active: #ffffff;
+  --link: #158aff;
+  --green-text: #20d252;
+  --track: #5f5f5f;
+  --paused: #b5b5b5;
+  --hover: #2a282f;
+  --select: rgba(255, 255, 255, 0.09);
+  --btn2-bg: transparent;
+  --btn2-text: #ececec;
+  --title-bg: #141218;
+  --blue-btn: #1e83f1;
+  --title-text: rgba(255, 255, 255, 0.9);
+  --title-line: #2a282f;
+  --card-shadow: none;
+  --menu-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px #423e4b;
+  --btn3d: none;
+  --scroll: rgba(255, 255, 255, 0.18);
+}
+body.dialog { --title-bg: var(--dialog, var(--surface)); }
+:root[data-base='dark'] body.dialog { --title-line: #2f2c35; }
+
+/* ------------------------------------------------------------------ base */
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg);
+  background-image: var(--bg-image);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 12px;
+  overflow: hidden;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+body.dialog { background: var(--dialog, var(--surface)); }
+img { display: block; -webkit-user-drag: none; }
+button { font: inherit; color: inherit; background: none; border: 0; padding: 0; cursor: pointer; }
+button:disabled { cursor: default; opacity: 0.5; }
+input, select, textarea { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+[hidden] { display: none !important; }
+.only-dark { display: none; }
+:root[data-base='dark'] .only-dark { display: block; }
+:root[data-base='dark'] .only-light { display: none; }
+:root[data-base='dark'] { --nav-ic-bg: #8a8a8a; --nav-ic-fg: #d4d4d4; }
+/* other themes: the selected icon follows the theme's accent colour */
+:root[data-theme]:not([data-theme='light']):not([data-theme='dark']) {
+  --nav-on-bg: color-mix(in srgb, var(--blue) 42%, #fff);
+  --nav-on-a: color-mix(in srgb, var(--blue) 72%, #000);
+  --nav-on-b: var(--blue);
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: var(--scroll); border-radius: 10px; border: 3px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* ------------------------------------------------------------------ title bar (native caption buttons are drawn by Windows on the right) */
+.titlebar {
+  position: fixed;
+  inset: 0 0 auto 0;
+  height: 32px;
+  background: var(--title-bg);
+  border-bottom: 1px solid var(--title-line);
+  -webkit-app-region: drag;
+  display: flex;
+  align-items: center;
+  padding-left: 16px;
+  padding-right: calc(100vw - env(titlebar-area-width, 100vw) + 8px);
+  z-index: 50;
+}
+.titlebar .tb-icon { width: 16px; height: 16px; }
+.titlebar .tb-title {
+  margin-left: 8px;
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--title-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.page { position: absolute; inset: 32px 0 0 0; }
+/* macOS: leave room for the traffic lights (close / minimise / zoom) on the left */
+:root[data-platform='mac'] .titlebar { padding-left: 78px; padding-right: 16px; }
+
+/* ------------------------------------------------------------------ buttons (Figma "3D Button Style") */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 38px;
+  padding: 8px 16px 8px 12px;
+  border-radius: 5px;
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 22px;
+  white-space: nowrap;
+  border: 1px solid var(--stroke);
+  transition: background-color 0.12s, box-shadow 0.12s, transform 0.06s;
+}
+.btn:active:not(:disabled) { transform: translateY(1px); }
+.btn img { width: 16px; height: 16px; flex: none; }
+.btn.text-only { padding: 8px 16px; }
+.btn-primary {
+  color: #fff;
+  background: var(--primary-btn, var(--blue));
+  border: 1px solid var(--btn-edge);
+  box-shadow: var(--btn3d);
+}
+:root[data-base='dark'] .btn-primary { border-color: var(--btn-edge); }
+.btn-primary:hover:not(:disabled) { filter: brightness(1.07); }
+.btn-secondary { background: var(--btn2-bg); color: var(--btn2-text); }
+.btn-secondary:hover:not(:disabled) { background: var(--hover); filter: brightness(0.98); }
+.btn-outline { background: var(--outline-bg); color: var(--btn2-text); }
+.btn-outline:hover:not(:disabled) { background: var(--hover); }
+.btn-outline.blue, .btn-secondary.blue { color: var(--link); }
+.btn-outline.blue img, .btn-secondary.blue img { filter: var(--accent-filter); }
+.btn-outline.green { color: var(--green-text); }
+.btn-link { font-size: 13px; font-weight: 500; color: var(--text-2); display: inline-flex; align-items: center; gap: 2px; height: 28px; padding: 0 6px; border-radius: 5px; }
+.btn-link:hover { background: var(--hover); }
+.btn-link img { width: 16px; height: 16px; transition: transform 0.15s; }
+.btn-link.open img { transform: rotate(180deg); }
+.spinner {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.45); border-top-color: #fff;
+  animation: spin 0.7s linear infinite;
+}
+.spinner.dark { border-color: rgba(30, 131, 241, 0.25); border-top-color: var(--blue); }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ------------------------------------------------------------------ fields */
+.field {
+  height: 32px;
+  width: 100%;
+  background: var(--field);
+  border: 1px solid var(--stroke);
+  border-radius: 5px;
+  padding: 0 9px;
+  font-size: 14px;
+  color: var(--text);
+  outline: none;
+  user-select: text;
+}
+.field:focus { border-color: var(--blue); }
+.field::placeholder { color: var(--text-3); }
+.label { font-size: 12px; color: var(--text); }
+
+.folder-field {
+  position: relative;
+  height: 40px;
+  background: var(--field);
+  border: 1px solid var(--stroke);
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+}
+.folder-field img { position: absolute; left: 11px; width: 16px; height: 16px; }
+.folder-field .path { position: absolute; left: 42px; right: 90px; font-size: 14px; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: ltr; }
+.folder-field .browse { position: absolute; right: 13px; font-size: 14px; color: var(--text-2); }
+.folder-field:hover .browse { color: var(--link); }
+
+/* toggle switch */
+.switch { position: relative; width: 32px; height: 18px; flex: none; }
+.switch input { position: absolute; opacity: 0; inset: 0; margin: 0; cursor: pointer; }
+.switch span { position: absolute; inset: 0; background: var(--track); border-radius: 9px; transition: background 0.15s; pointer-events: none; }
+.switch span::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,.25); transition: transform 0.15s; }
+.switch input:checked + span { background: var(--blue); }
+.switch input:checked + span::after { transform: translateX(14px); }
+.switch input:focus-visible + span { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+select.field { padding-right: 26px; appearance: none; background-image: url('../assets/icons/chevron-down.svg'); background-repeat: no-repeat; background-position: right 6px center; cursor: pointer; }
+:root[data-base='dark'] select.field { background-image: url('../assets/icons/chevron-down-dark.svg'); }
+select.field option { background: var(--surface); color: var(--text); }
+
+/* toast */
+.toast {
+  position: fixed; left: 50%; bottom: 18px; transform: translate(-50%, 12px);
+  background: #191919; color: #fff; font-size: 12px; font-weight: 500;
+  padding: 8px 14px; border-radius: 6px; opacity: 0; pointer-events: none;
+  transition: opacity 0.18s, transform 0.18s; z-index: 100; max-width: 80vw;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+:root[data-base='dark'] .toast { background: #ececec; color: #191919; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+/* progress bar shared */
+.bar { position: relative; background: var(--track); overflow: hidden; }
+.bar .fill { position: absolute; inset: 0 auto 0 0; width: 0; background: var(--green); transition: width 0.45s linear; }
+.bar.paused .fill, .bar.queued .fill, .bar.canceled .fill { background: var(--paused); }
+.bar.error .fill { background: var(--red); }
+.bar.indeterminate .fill {
+  width: 30% !important; animation: indet 1.2s ease-in-out infinite; transition: none;
+}
+@keyframes indet { 0% { left: -30%; } 100% { left: 100%; } }

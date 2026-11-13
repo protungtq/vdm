@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+    <title>VN Download Manager</title>
+    <link rel="stylesheet" href="styles/base.css" />
+    <link rel="stylesheet" href="styles/themes.css" />
+    <link rel="stylesheet" href="styles/main.css" />
+  </head>
+  <body class="main">
+    <header class="titlebar">
+      <img class="tb-icon" src="assets/icons/logo.svg" alt="" />
+      <span class="tb-title">VN Download Manager</span>
+    </header>
+
+    <div class="page" id="page">
+      <aside class="sidebar">
+        <button class="btn-add" id="addLink" title="Add a new download (Ctrl+N)">
+          <img src="assets/icons/add.svg" alt="" />
+          <span>Add Link</span>
+        </button>
+        <svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><linearGradient id="navOn" x1="0.6" y1="0" x2="0.4" y2="1"><stop offset="0" class="g-a" /><stop offset="1" class="g-b" /></linearGradient></defs></svg>
+        <nav class="nav" id="nav">
+          <button class="nav-item active" data-view="all">
+            <svg class="nav-ic" viewBox="0 0 16 16" aria-hidden="true"><path class="ic-bg" d="M4 0C3.52662 0 3.14286 0.383755 3.14286 0.857143V4.00008C3.14286 5.6591 3.97462 7.12385 5.24387 8.00008C3.97467 8.87631 3.14296 10.341 3.14296 12V15.1429C3.14296 15.6162 3.52672 16 4.0001 16H12.0001C12.4735 16 12.8573 15.6162 12.8573 15.1429V12C12.8573 10.341 12.0255 8.87623 10.7562 8C12.0254 7.12377 12.8571 5.65905 12.8571 4.00008V0.857143C12.8571 0.383755 12.4734 0 12 0H4Z" fill-rule="evenodd"/><path class="ic-fg" d="M0.857143 0.857143C0.857143 0.383755 1.2409 0 1.71429 0H14.2857C14.7591 0 15.1429 0.383755 15.1429 0.857143C15.1429 1.33053 14.7591 1.71429 14.2857 1.71429H1.71429C1.2409 1.71429 0.857143 1.33053 0.857143 0.857143ZM0.85819 15.1429C0.85819 14.6695 1.24194 14.2857 1.71534 14.2857H4.85725V12.5307L6.67145 11.2349C7.4662 10.6672 8.53381 10.6672 9.32855 11.2349L11.143 12.531V14.2857H14.2867C14.7601 14.2857 15.1439 14.6695 15.1439 15.1429C15.1439 15.6162 14.7601 16 14.2867 16H1.71534C1.24194 16 0.85819 15.6162 0.85819 15.1429Z" fill-rule="evenodd"/></svg>
+            <span>All Downloads</span><b class="badge" id="badgeAll"></b>
+          </button>
+          <button class="nav-item" data-view="completed">
+            <svg class="nav-ic" viewBox="0 0 16 16" aria-hidden="true"><path class="ic-bg" d="M14.2857 0H1.71429C0.767512 0 0 0.767512 0 1.71429V14.2857C0 15.2325 0.767512 16 1.71429 16H14.2857C15.2325 16 16 15.2325 16 14.2857V1.71429C16 0.767512 15.2325 0 14.2857 0Z"/><path class="ic-fg" d="M8.58124 6.12951C8.81053 5.8085 8.73618 5.3624 8.41517 5.13311C8.09416 4.90381 7.64806 4.97816 7.41877 5.29917L5.05172 8.61304L3.93365 7.49499C3.6547 7.21604 3.20245 7.21604 2.9235 7.49499C2.64455 7.77392 2.64455 8.22619 2.9235 8.50513L4.63778 10.2194C4.78625 10.3679 4.99253 10.4435 5.20177 10.4262C5.41102 10.4089 5.60206 10.3004 5.72409 10.1295L8.58124 6.12951ZM9.14286 7.8572C8.74837 7.8572 8.42857 8.177 8.42857 8.57149C8.42857 8.96598 8.74837 9.28577 9.14286 9.28577H12.5714C12.9659 9.28577 13.2857 8.96598 13.2857 8.57149C13.2857 8.177 12.9659 7.8572 12.5714 7.8572H9.14286Z" fill-rule="evenodd"/></svg>
+            <span>Completed</span>
+          </button>
+          <button class="nav-item" data-view="scheduled">
+            <svg class="nav-ic" viewBox="0 0 16 16" aria-hidden="true"><path class="ic-bg" d="M5.42857 0.857143C5.42857 0.383755 5.81233 0 6.28571 0H9.71428C10.1877 0 10.5714 0.383755 10.5714 0.857143C10.5714 1.33053 10.1877 1.71429 9.71428 1.71429H8.85714V2.33877C12.2397 2.76056 14.8571 5.64605 14.8571 9.14286C14.8571 12.9299 11.7871 16 8 16C4.2129 16 1.14285 12.9299 1.14285 9.14286C1.14285 5.64605 3.7603 2.76056 7.14285 2.33877V1.71429H6.28571C5.81233 1.71429 5.42857 1.33053 5.42857 0.857143Z" fill-rule="evenodd"/><path class="ic-fg" d="M2.89181 1.67962C3.22654 2.01435 3.22654 2.55707 2.89181 2.89181L1.74895 4.03466C1.41422 4.36939 0.871507 4.36939 0.536772 4.03466C0.202037 3.69993 0.202037 3.15721 0.536772 2.82248L1.67963 1.67962C2.01436 1.34489 2.55708 1.34489 2.89181 1.67962ZM13.1082 1.67962C13.443 1.34489 13.9856 1.34489 14.3204 1.67962L15.4632 2.82248C15.7979 3.15721 15.7979 3.69993 15.4632 4.03466C15.1285 4.36939 14.5858 4.36939 14.2511 4.03466L13.1082 2.89181C12.7735 2.55707 12.7735 2.01435 13.1082 1.67962ZM6.85715 6.42857C6.62045 6.11298 6.17274 6.04902 5.85715 6.28571C5.54156 6.52241 5.47759 6.97013 5.71429 7.28571L7.42858 9.57143C7.56347 9.75129 7.77518 9.85714 8.00001 9.85714H10.8572C11.2516 9.85714 11.5714 9.53735 11.5714 9.14286C11.5714 8.74837 11.2516 8.42857 10.8572 8.42857H8.35715L6.85715 6.42857Z" fill-rule="evenodd"/></svg>
+            <span>Scheduled</span><b class="badge" id="badgeQueue"></b>
+          </button>
+          <button class="nav-item" data-view="settings">
+            <svg class="nav-ic" viewBox="0 0 16 16" aria-hidden="true"><path class="ic-bg" d="M6.35078 0.787693L5.82155 2.15385L4.00002 3.18769L2.54771 2.96615C2.30588 2.93333 2.05976 2.97314 1.84061 3.08053C1.62146 3.18791 1.43918 3.35801 1.31694 3.56923L0.824631 4.43077C0.698479 4.64535 0.640357 4.89314 0.657935 5.14144C0.675514 5.38974 0.767967 5.62687 0.923093 5.82154L1.84617 6.96615V9.03385L0.947708 10.1785C0.792582 10.3731 0.700129 10.6103 0.682551 10.8586C0.664973 11.1069 0.723095 11.3547 0.849247 11.5693L1.34155 12.4307C1.4638 12.6419 1.64608 12.8121 1.86523 12.9194C2.08437 13.0269 2.3305 13.0666 2.57233 13.0338L4.02464 12.8123L5.82155 13.8462L6.35078 15.2123C6.44004 15.4437 6.59707 15.6426 6.80131 15.7831C7.00555 15.9237 7.24747 15.9993 7.4954 16H8.52924C8.77717 15.9993 9.0191 15.9237 9.22334 15.7831C9.42758 15.6426 9.58461 15.4437 9.67386 15.2123L10.2031 13.8462L12 12.8123L13.4523 13.0338C13.6942 13.0666 13.9402 13.0269 14.1594 12.9194C14.3785 12.8121 14.5608 12.6419 14.6831 12.4307L15.1754 11.5693C15.3016 11.3547 15.3597 11.1069 15.3421 10.8586C15.3245 10.6103 15.2321 10.3731 15.0769 10.1785L14.1538 9.03385V6.96615L15.0523 5.82154C15.2074 5.62687 15.2999 5.38974 15.3175 5.14144C15.3351 4.89314 15.2769 4.64535 15.1507 4.43077L14.6585 3.56923C14.5362 3.35801 14.3539 3.18791 14.1349 3.08053C13.9157 2.97314 13.6695 2.93333 13.4277 2.96615L11.9754 3.18769L10.1785 2.15385L9.64925 0.787693C9.56 0.556386 9.40297 0.357429 9.19873 0.216877C8.99449 0.0763248 8.75255 0.000732377 8.50463 0H7.4954C7.24747 0.000732377 7.00555 0.0763248 6.80131 0.216877C6.59707 0.357429 6.44004 0.556386 6.35078 0.787693ZM8.00003 10.5714C9.42019 10.5714 10.5715 9.42016 10.5715 8C10.5715 6.57984 9.42019 5.42857 8.00003 5.42857C6.57986 5.42857 5.4286 6.57984 5.4286 8C5.4286 9.42016 6.57986 10.5714 8.00003 10.5714Z" fill-rule="evenodd"/><circle class="ic-fg" cx="7.99999" cy="7.99999" r="2.66667"/></svg>
+            <span>Settings</span>
+          </button>
+        </nav>
+        <div class="side-foot">
+          <div class="total-speed" id="totalSpeed" hidden></div>
+          <button class="update-btn" id="updateBtn" hidden>
+            <i class="u-fill" id="updateFill"></i>
+            <span class="u-label" id="updateLabel">Update Available!</span>
+            <svg class="u-ic u-ic-get" viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8.2M4.6 7l3.4 3.4L11.4 7M3 13.5h10" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <svg class="u-ic u-ic-restart" viewBox="0 0 16 16" aria-hidden="true"><path d="M13 8a5 5 0 1 1-1.6-3.7M13 2.5v3h-3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+          <div class="foot-row">
+            <button class="gh" id="github" title="Project on GitHub">
+              <svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+            </button>
+            <div class="version" id="version">Version 0.1</div>
+          </div>
+        </div>
+      </aside>
+
+      <section class="content" id="content">
+        <div class="toolbar">
+          <div class="tool-box search" id="search">
+            <span class="search-icon"><img src="assets/icons/search.svg" alt="" /></span>
+            <input id="searchInput" type="text" placeholder="Search..." spellcheck="false" />
+            <button class="search-clear" id="searchClear" title="Clear"><img src="assets/icons/search-clear.svg" alt="" /></button>
+          </div>
+          <div class="tool-box actions" id="actions">
+            <button class="tool-btn resume" id="actResume" data-tip="Resume" disabled>
+              <svg viewBox="0 0 24 24" fill="none"><path d="M7.25 5.9v12.2c0 1 1.1 1.6 1.93 1.05l9.15-6.1a1.25 1.25 0 0 0 0-2.1L9.18 4.85C8.35 4.3 7.25 4.9 7.25 5.9Z" fill="currentColor" fill-opacity=".2" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/></svg>
+            </button>
+            <button class="tool-btn pause" id="actPause" data-tip="Pause" disabled>
+              <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.75" fill="currentColor" fill-opacity=".16" stroke="currentColor" stroke-width="1.5"/><path d="M10 9.25v5.5M14 9.25v5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </button>
+            <button class="tool-btn stop" id="actStop" data-tip="Stop all downloads" disabled>
+              <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="8.75" fill="currentColor" fill-opacity=".16" stroke="currentColor" stroke-width="1.5"/><rect x="9.25" y="9.25" width="5.5" height="5.5" rx="1.2" stroke="currentColor" stroke-width="1.5"/></svg>
+            </button>
+            <button class="tool-btn delete" id="actDelete" data-tip="Delete" disabled>
+              <svg viewBox="0 0 24 24" fill="none"><path d="M6.6 7.5l.75 10.6a2 2 0 0 0 2 1.9h5.3a2 2 0 0 0 2-1.9l.75-10.6" fill="currentColor" fill-opacity=".2"/><path d="M4.75 7.5h14.5M9.5 7.25V5.6c0-.75.6-1.35 1.35-1.35h2.3c.75 0 1.35.6 1.35 1.35v1.65M6.6 7.5l.75 10.6a2 2 0 0 0 2 1.9h5.3a2 2 0 0 0 2-1.9l.75-10.6M10.25 10.75v5.5M13.75 10.75v5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
+            <button class="tool-btn select-all" id="actSelectAll" data-tip="Select all" disabled>
+              <svg viewBox="0 0 24 24" fill="none"><g transform="translate(3.6 3.6) scale(1.2)"><path class="sa-box" d="M10.5 .5h-7a3 3 0 0 0-3 3v7a3 3 0 0 0 3 3h7a3 3 0 0 0 3-3v-7a3 3 0 0 0-3-3Z" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/><path class="sa-check" d="M4 8l2.05 1.64a.5.5 0 0 0 .74-.14L10 4" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round"/></g></svg>
+            </button>
+          </div>
+          <div class="tool-box view-switch" id="viewSwitch">
+            <button class="tool-btn on" data-view-mode="cards" data-tip="Large icons">
+              <svg viewBox="0 0 24 24" fill="none"><rect x="4.25" y="4.75" width="15.5" height="14.5" rx="2.5" stroke="currentColor" stroke-width="1.6"/><path d="M4.25 9.6h15.5M4.25 14.4h15.5" stroke="currentColor" stroke-width="1.6"/></svg>
+            </button>
+            <button class="tool-btn" data-view-mode="compact" data-tip="Compact list">
+              <svg viewBox="0 0 24 24" fill="none"><circle cx="5.5" cy="7" r="1.15" fill="currentColor"/><circle cx="5.5" cy="12" r="1.15" fill="currentColor"/><circle cx="5.5" cy="17" r="1.15" fill="currentColor"/><path d="M9.5 7h10M9.5 12h10M9.5 17h10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="card" id="card">
+          <!-- All / Completed -->
+          <div class="view" id="view-list">
+            <div class="list" id="list"></div>
+            <div class="empty" id="empty" hidden>
+              <img src="assets/icons/logo.svg" alt="" />
+              <div class="empty-title" id="emptyTitle">No downloads yet</div>
+              <div class="empty-sub" id="emptySub">Click “Add Link”, paste a link (Ctrl+V) or drop one here.</div>
+            </div>
+          </div>
+
+          <!-- Scheduled (queue + scheduler) -->
+          <div class="view" id="view-scheduled" hidden>
+            <div class="queue-tabs" id="queueTabs"></div>
+            <div class="queue-panel">
+              <div class="qp-row">
+                <button class="btn btn-primary qp-start" id="queueStart"><img src="assets/icons/btn-play.svg" alt="" class="white" /><span>Start queue</span></button>
+                <button class="btn btn-outline qp-stop" id="queueStop" hidden><img src="assets/icons/btn-pause.svg" alt="" /><span>Stop queue</span></button>
+                <div class="qp-status" id="queueStatus">Queue is idle</div>
+                <div class="qp-tools">
+                  <button class="qp-tool" id="queueRename" title="Rename this queue">
+                    <svg viewBox="0 0 16 16" fill="none"><path d="M10.6 2.9l2.5 2.5M3 13l.6-2.9 7.7-7.7a1.1 1.1 0 0 1 1.6 0l.9.9a1.1 1.1 0 0 1 0 1.6l-7.7 7.7L3 13Z" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>
+                  </button>
+                  <button class="qp-tool danger" id="queueDelete" title="Delete this queue">
+                    <svg viewBox="0 0 16 16" fill="none"><path d="M2.75 4.5h10.5M6.25 4.25V3.1c0-.5.4-.85.85-.85h1.8c.5 0 .85.4.85.85v1.15M4.2 4.5l.5 7.6c.05.75.7 1.35 1.45 1.35h3.7c.75 0 1.4-.6 1.45-1.35l.5-7.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                  </button>
+                </div>
+              </div>
+              <div class="qp-grid">
+                <label class="qp-cell"><span class="switch"><input type="checkbox" id="schEnabled" /><span></span></span><span>Start at</span><input class="field time" type="time" id="schStart" /></label>
+                <label class="qp-cell"><span class="switch"><input type="checkbox" id="schStopEnabled" /><span></span></span><span>Stop at</span><input class="field time" type="time" id="schStop" /></label>
+                <div class="qp-cell days" id="schDays"></div>
+                <label class="qp-cell"><span>At a time</span><select class="field small" id="schMax"></select></label>
+                <label class="qp-cell"><span>When finished</span>
+                  <select class="field" id="schAfter">
+                    <option value="none">Do nothing</option>
+                    <option value="exit">Exit app</option>
+                    <option value="sleep">Sleep</option>
+                    <option value="hibernate">Hibernate</option>
+                    <option value="shutdown">Shut down</option>
+                  </select>
+                </label>
+              </div>
+            </div>
+            <div class="list" id="qlist"></div>
+            <div class="empty small" id="qempty" hidden>
+              <div class="empty-title">The queue is empty</div>
+              <div class="empty-sub">Choose “Download Later” when adding a link, or right-click a download → Add to queue.</div>
+            </div>
+          </div>
+
+          <!-- Settings -->
+          <div class="view settings" id="view-settings" hidden></div>
+
+          <div class="power-banner" id="powerBanner" hidden>
+            <span id="powerText"></span>
+            <button class="btn btn-secondary text-only" id="powerCancel">Cancel</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="drop-hint" id="dropHint" hidden><div>Drop link to download</div></div>
+
+    <script src="../shared/i18n.js"></script>
+    <script src="common.js"></script>
+    <script src="views/settings.js"></script>
+    <script src="main.js"></script>
+  </body>
+</html>

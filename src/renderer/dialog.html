@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data: https:; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+    <title>Add New Download</title>
+    <link rel="stylesheet" href="styles/base.css" />
+    <link rel="stylesheet" href="styles/themes.css" />
+    <link rel="stylesheet" href="styles/dialog.css" />
+  </head>
+  <body class="dialog">
+    <header class="titlebar">
+      <img class="tb-icon" src="assets/icons/logo.svg" alt="" />
+      <span class="tb-title" id="title">Add New Download</span>
+    </header>
+
+    <!-- Step 1: Add link (580×154) -->
+    <form class="page pane" id="paneAdd" autocomplete="off">
+      <label class="label at" style="left: 24px; top: 24px" for="address" id="addrLabel">Address:</label>
+      <input class="field at" id="address" style="left: 24px; top: 48px; width: 532px" spellcheck="false" placeholder="https://   ·   tip: file.part[01-10].rar adds 10 links" />
+      <div class="status at" id="addStatus" style="left: 24px; top: 92px"></div>
+      <button type="button" class="btn btn-secondary at" id="addCancel" style="right: 117px; bottom: 24px"><img src="assets/icons/btn-x.svg" alt="" /><span>Cancel</span></button>
+      <button type="submit" class="btn btn-primary at ok" id="addOk" style="right: 24px; bottom: 24px"><span>Ok</span></button>
+    </form>
+
+    <!-- Step 2: Download file info (580×233) -->
+    <form class="page pane" id="paneInfo" autocomplete="off" hidden>
+      <img class="at" id="infoCat" src="assets/categories/other-max.svg" alt="" style="left: 24px; top: 24px; width: 50px; height: 32px" />
+      <input class="field at" id="infoName" style="left: 85px; top: 24px; width: 471px" spellcheck="false" title="File name" />
+      <div class="at size-line" style="left: 24px; top: 80px">
+        <span class="label">Size:</span>
+        <b class="size-val" id="infoSize">…</b>
+      </div>
+      <div class="at size-line right" style="right: 24px; top: 80px">
+        <span class="label">Available:</span>
+        <span class="avail-val" id="infoAvail">…</span>
+      </div>
+      <div class="folder-field at" id="infoFolder" style="left: 24px; top: 107px; width: 532px" title="Change folder">
+        <img src="assets/icons/folder.svg" alt="" />
+        <div class="path" id="infoDir"></div>
+        <div class="browse">Browse...</div>
+      </div>
+      <div class="at warn" id="infoWarn" style="left: 24px; top: 151px" hidden></div>
+      <button type="button" class="btn btn-outline text-only at" id="infoLater" style="left: 24px; bottom: 24px">Download Later</button>
+      <button type="button" class="btn btn-secondary blue at" id="infoWatch" style="right: 154px; bottom: 24px">
+        <img src="assets/icons/btn-play.svg" alt="" class="only-light" /><img src="assets/icons/btn-play-dark.svg" alt="" class="only-dark" /><span>Online Watch</span>
+      </button>
+      <button type="submit" class="btn btn-primary at" id="infoDownload" style="right: 24px; bottom: 24px"><img src="assets/icons/btn-download.svg" alt="" /><span>Download</span></button>
+    </form>
+
+    <!-- Video download (yt-dlp): 580×388 -->
+    <form class="page pane" id="paneMedia" autocomplete="off" hidden>
+      <div class="media-state" id="mediaLoading">
+        <div class="spinner dark big"></div>
+        <div class="ms-title" id="mediaLoadingText">Looking for the video…</div>
+        <div class="ms-sub" id="mediaLoadingSub"></div>
+      </div>
+      <div class="media-state" id="mediaInstall" hidden>
+        <img src="assets/icons/logo.svg" alt="" class="ms-logo" />
+        <div class="ms-title">Turn on video downloads</div>
+        <div class="ms-sub" id="mediaInstallSub"></div>
+        <div class="ms-progress" id="mediaInstallProgress" hidden><div class="bar"><div class="fill" id="mediaInstallFill"></div></div><span id="mediaInstallText"></span></div>
+        <button type="button" class="btn btn-primary text-only" id="mediaInstallBtn">Install video support</button>
+      </div>
+      <div class="media-state" id="mediaError" hidden>
+        <div class="ms-title" id="mediaErrorText">No video found on this page</div>
+        <div class="ms-sub" id="mediaErrorSub">This page may not have a downloadable video, or the video is DRM-protected (Netflix, Spotify…).</div>
+        <div class="ms-actions">
+          <button type="button" class="btn btn-secondary text-only" id="mediaErrorClose">Close</button>
+          <button type="button" class="btn btn-outline blue text-only" id="mediaAsFile">Download the link as a file</button>
+        </div>
+      </div>
+      <div id="mediaReady" hidden>
+        <div class="at thumb empty" id="mediaThumb" style="left: 24px; top: 24px"><img id="mediaThumbImg" alt="" hidden /><img class="thumb-logo" src="assets/icons/logo-mono.svg" alt="" /></div>
+        <input class="field at" id="mediaTitle" style="left: 164px; top: 24px; right: 24px; width: auto" spellcheck="false" title="File name" />
+        <div class="at media-meta" id="mediaMeta" style="left: 164px; top: 66px; right: 24px"></div>
+        <div class="at label" style="left: 24px; top: 108px">Quality</div>
+        <div class="at quality-list" id="qualityList" style="left: 24px; top: 128px; right: 24px"></div>
+        <div class="folder-field at" id="mediaFolder" style="left: 24px; right: 24px; bottom: 80px" title="Change folder">
+          <img src="assets/icons/folder.svg" alt="" />
+          <div class="path" id="mediaDir"></div>
+          <div class="browse">Browse...</div>
+        </div>
+        <button type="button" class="btn btn-outline text-only at" id="mediaLater" style="left: 24px; bottom: 24px">Download Later</button>
+        <button type="submit" class="btn btn-primary at" id="mediaDownload" style="right: 24px; bottom: 24px"><img src="assets/icons/btn-download.svg" alt="" /><span>Download</span></button>
+      </div>
+    </form>
+
+    <!-- Several links (paste / drop / browser / pattern): 580×388 -->
+    <form class="page pane" id="paneBatch" autocomplete="off" hidden>
+      <div class="at batch-head" style="left: 24px; right: 24px; top: 20px">
+        <span class="batch-count" id="batchCount">0 links</span>
+        <label class="batch-all"><input type="checkbox" id="batchAll" checked /> Select all</label>
+      </div>
+      <div class="at batch-list" id="batchList" style="left: 24px; right: 24px; top: 52px; bottom: 82px"></div>
+      <div class="at batch-foot" style="left: 24px; right: 24px; bottom: 24px">
+        <div class="batch-status" id="batchStatus"></div>
+        <button type="button" class="btn btn-secondary" id="batchCancel"><img src="assets/icons/btn-x.svg" alt="" /><span>Cancel</span></button>
+        <button type="button" class="btn btn-outline text-only" id="batchQueue">Add to queue</button>
+        <button type="submit" class="btn btn-primary" id="batchStart"><img src="assets/icons/btn-download.svg" alt="" /><span>Download all</span></button>
+      </div>
+    </form>
+
+    <script src="../shared/i18n.js"></script>
+    <script src="common.js"></script>
+    <script src="dialog.js"></script>
+  </body>
+</html>

@@ -1,0 +1,264 @@
+/* ------------------------------------------------------------------
+   Extra themes. Light / Dark (the Figma design) live in base.css.
+   Every block is also scoped to `.theme-preview[data-t=…]` so the
+   Settings theme cards render with the theme's real colours.
+   "Glass" themes use translucent surfaces over a gradient background.
+   ------------------------------------------------------------------ */
+
+/* Shared defaults for the gradient "glass" dark themes */
+:root[data-theme='ocean'], .theme-preview[data-t='ocean'],
+:root[data-theme='night'], .theme-preview[data-t='night'],
+:root[data-theme='neon'], .theme-preview[data-t='neon'],
+:root[data-theme='jungle'], .theme-preview[data-t='jungle'] {
+  --primary-btn: #22a061;
+  --surface: rgba(255, 255, 255, 0.075);
+  --field: rgba(255, 255, 255, 0.07);
+  --stroke: rgba(255, 255, 255, 0.14);
+  --line: rgba(255, 255, 255, 0.1);
+  --hover: rgba(255, 255, 255, 0.07);
+  --track: rgba(255, 255, 255, 0.16);
+  --paused: rgba(255, 255, 255, 0.5);
+  --text: #ffffff;
+  --text-2: rgba(255, 255, 255, 0.86);
+  --text-3: rgba(255, 255, 255, 0.55);
+  --nav-text: rgba(255, 255, 255, 0.72);
+  --nav-active: #ffffff;
+  --btn2-bg: transparent;
+  --btn2-text: rgba(255, 255, 255, 0.9);
+  --title-text: rgba(255, 255, 255, 0.92);
+  --title-line: rgba(255, 255, 255, 0.1);
+  --card-shadow: 0 10px 30px rgba(0, 0, 0, 0.22);
+  --menu-shadow: 0 12px 32px rgba(0, 0, 0, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.12);
+  --scroll: rgba(255, 255, 255, 0.22);
+  --btn3d: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+:root[data-theme='ocean'] .card,
+:root[data-theme='night'] .card,
+:root[data-theme='neon'] .card,
+:root[data-theme='jungle'] .card,
+:root[data-theme='day'] .card {
+  backdrop-filter: blur(14px);
+}
+
+/* Ocean — deep blue to teal */
+:root[data-theme='ocean'], .theme-preview[data-t='ocean'] {
+  --primary-btn: #1e9be8;
+  --bg: #0a2a5e;
+  --bg-image: linear-gradient(160deg, #0a2a5e 0%, #0b4f8a 55%, #0e7fb0 100%);
+  --title-bg: #0a2a5e;
+  --dialog: #0f3462;
+  --blue: #5cc8ff;
+  --link: #5cc8ff;
+  --blue-btn: #1e9be8;
+  --btn-ring: #5cc8ff;
+  --select: rgba(92, 200, 255, 0.16);
+  --accent-filter: hue-rotate(-12deg) saturate(1.2) brightness(1.2);
+}
+
+/* Day — airy light blue */
+:root[data-theme='day'], .theme-preview[data-t='day'] {
+  --primary-btn: #3b82f6;
+  --bg: #eef4ff;
+  --bg-image: linear-gradient(160deg, #f6f9ff 0%, #e4eeff 100%);
+  --title-bg: #f6f9ff;
+  --title-text: rgba(20, 33, 61, 0.9);
+  --title-line: #dbe6f6;
+  --dialog: #ffffff;
+  --surface: rgba(255, 255, 255, 0.88);
+  --field: #ffffff;
+  --stroke: #d3e0f5;
+  --line: #e4ecf8;
+  --hover: #f2f6fd;
+  --track: #dce6f5;
+  --paused: #b5c2d9;
+  --text: #14213d;
+  --text-2: #4a5b7a;
+  --text-3: #9aaacb;
+  --nav-text: #4a5b7a;
+  --nav-active: #2563eb;
+  --blue: #3b82f6;
+  --link: #3b82f6;
+  --blue-btn: #3b82f6;
+  --btn-ring: #60a5fa;
+  --btn2-bg: #f2f6fd;
+  --btn2-text: #4a5b7a;
+  --select: rgba(59, 130, 246, 0.09);
+  --accent-filter: hue-rotate(8deg);
+}
+
+/* Night — slate navy */
+:root[data-theme='night'], .theme-preview[data-t='night'] {
+  --primary-btn: #5b7cfa;
+  --bg: #161b2b;
+  --bg-image: linear-gradient(160deg, #161b2b 0%, #1e2538 60%, #283149 100%);
+  --title-bg: #161b2b;
+  --dialog: #1d2335;
+  --surface: rgba(255, 255, 255, 0.05);
+  --blue: #8aa4ff;
+  --link: #8aa4ff;
+  --blue-btn: #5b7cfa;
+  --btn-ring: #8aa4ff;
+  --select: rgba(138, 164, 255, 0.14);
+  --accent-filter: hue-rotate(22deg) brightness(1.15);
+}
+
+/* Neon — violet to cyan, glowing accents */
+:root[data-theme='neon'], .theme-preview[data-t='neon'] {
+  --primary-btn: #c026d3;
+  --bg: #1a0638;
+  --bg-image: linear-gradient(150deg, #1a0638 0%, #3b0d8c 45%, #6d28d9 72%, #0ea5c6 100%);
+  --title-bg: #1a0638;
+  --dialog: #240a4a;
+  --surface: rgba(12, 2, 34, 0.45);
+  --field: rgba(12, 2, 34, 0.5);
+  --stroke: rgba(192, 132, 252, 0.38);
+  --line: rgba(192, 132, 252, 0.18);
+  --blue: #22d3ee;
+  --link: #22d3ee;
+  --blue-btn: #c026d3;
+  --btn-ring: #e879f9;
+  --btn3d: 0 0 16px rgba(217, 70, 239, 0.55);
+  --select: rgba(34, 211, 238, 0.12);
+  --accent-filter: hue-rotate(80deg) saturate(1.5) brightness(1.2);
+}
+:root[data-theme='neon'] .btn-add { box-shadow: 0 0 18px rgba(217, 70, 239, 0.6), 0 0 0 1px #e879f9; }
+:root[data-theme='neon'] .bar .fill { box-shadow: 0 0 8px rgba(34, 211, 238, 0.6); }
+
+/* Jungle — deep forest green */
+:root[data-theme='jungle'], .theme-preview[data-t='jungle'] {
+  --bg: #0e2f23;
+  --bg-image: linear-gradient(160deg, #0e2f23 0%, #1b5e3f 60%, #3e8e5e 100%);
+  --title-bg: #0e2f23;
+  --dialog: #143a2c;
+  --blue: #7ee2a8;
+  --link: #7ee2a8;
+  --blue-btn: #22a061;
+  --btn-ring: #4ade80;
+  --select: rgba(126, 226, 168, 0.14);
+  --accent-filter: hue-rotate(-62deg) brightness(1.15);
+}
+
+/* Paper — warm cream (light) */
+:root[data-theme='paper'], .theme-preview[data-t='paper'] {
+  --primary-btn: #d9822b;
+  --bg: #f4efe6;
+  --bg-image: linear-gradient(160deg, #f7f3ea 0%, #efe8da 100%);
+  --title-bg: #fbf8f1;
+  --title-text: rgba(43, 36, 32, 0.9);
+  --title-line: #e6dccb;
+  --dialog: #fffcf6;
+  --surface: #fffcf6;
+  --field: #fffdf9;
+  --stroke: #e6dccb;
+  --line: #eee6d8;
+  --hover: #f6f0e5;
+  --track: #eae1d1;
+  --paused: #c4b5a0;
+  --text: #2b2420;
+  --text-2: #6b5e52;
+  --text-3: #b3a592;
+  --nav-text: #6b5e52;
+  --nav-active: #b5651d;
+  --blue: #d9822b;
+  --link: #c06f1f;
+  --blue-btn: #d9822b;
+  --btn-ring: #e59a4b;
+  --btn2-bg: #f6f0e5;
+  --btn2-text: #6b5e52;
+  --select: rgba(217, 130, 43, 0.1);
+  --accent-filter: hue-rotate(185deg) saturate(0.85);
+}
+
+/* Mint — fresh light green */
+:root[data-theme='mint'], .theme-preview[data-t='mint'] {
+  --primary-btn: #12a36b;
+  --bg: #eff6f2;
+  --bg-image: none;
+  --title-bg: #ffffff;
+  --title-text: rgba(20, 36, 28, 0.9);
+  --title-line: #d5e6dc;
+  --dialog: #ffffff;
+  --surface: #ffffff;
+  --field: #fbfefc;
+  --stroke: #d5e6dc;
+  --line: #e3efe8;
+  --hover: #f1f8f4;
+  --track: #dcebe2;
+  --text: #14241c;
+  --text-2: #4f6b5d;
+  --text-3: #a2b8ac;
+  --nav-text: #4f6b5d;
+  --nav-active: #0e8a5a;
+  --blue: #12a36b;
+  --link: #0e8a5a;
+  --blue-btn: #12a36b;
+  --btn-ring: #34c08a;
+  --btn2-bg: #f1f8f4;
+  --btn2-text: #4f6b5d;
+  --select: rgba(18, 163, 107, 0.1);
+  --accent-filter: hue-rotate(-58deg);
+}
+
+/* Retro 95 — silver window face, navy title, bevelled controls */
+:root[data-theme='retro'], .theme-preview[data-t='retro'] {
+  --primary-btn: #c0c0c0;
+  --bg: #c0c0c0;
+  --bg-image: linear-gradient(160deg, #c9c9c9 0%, #b4b4c2 100%);
+  --title-bg: #000080;
+  --title-text: #ffffff;
+  --title-line: #000080;
+  --dialog: #c0c0c0;
+  --surface: #c0c0c0;
+  --field: #ffffff;
+  --stroke: #808080;
+  --line: #a0a0a0;
+  --hover: #d4d4d4;
+  --track: #ffffff;
+  --paused: #808080;
+  --text: #000000;
+  --text-2: #222222;
+  --text-3: #505050;
+  --nav-text: #000000;
+  --nav-active: #000080;
+  --blue: #000080;
+  --link: #000080;
+  --blue-btn: #000080;
+  --btn-ring: #000080;
+  --btn2-bg: #c0c0c0;
+  --btn2-text: #000000;
+  --select: #000080;
+  --card-shadow: none;
+  --menu-shadow: 2px 2px 0 #000;
+  --btn3d: none;
+  --accent-filter: hue-rotate(25deg) saturate(1.4) brightness(0.55);
+}
+:root[data-theme='retro'] *,
+.theme-preview[data-t='retro'] * { border-radius: 0 !important; }
+:root[data-theme='retro'] body.dialog { --title-bg: #000080; --title-line: #000080; }
+:root[data-theme='retro'] .card,
+:root[data-theme='retro'] .tool-box,
+:root[data-theme='retro'] .nav-item.active,
+:root[data-theme='retro'] .btn,
+:root[data-theme='retro'] .btn-add,
+:root[data-theme='retro'] .conn-menu {
+  border: 2px solid;
+  border-color: #ffffff #404040 #404040 #ffffff;
+  box-shadow: inset -1px -1px 0 #808080, inset 1px 1px 0 #dfdfdf;
+}
+:root[data-theme='retro'] .card { border-color: #404040 #ffffff #ffffff #404040; box-shadow: inset 1px 1px 0 #808080; background: #ffffff; }
+:root[data-theme='retro'] .field,
+:root[data-theme='retro'] .folder-field { border: 2px solid; border-color: #808080 #ffffff #ffffff #808080; }
+:root[data-theme='retro'] .btn-add { background: #c0c0c0; color: #000; font-weight: 700; }
+:root[data-theme='retro'] .btn-add img { filter: brightness(0); }
+:root[data-theme='retro'] .btn-primary { background: #c0c0c0; color: #000; font-weight: 700; outline: 1px solid #000; }
+:root[data-theme='retro'] .btn-primary img { filter: brightness(0); }
+:root[data-theme='retro'] .row.selected { background: #000080; }
+:root[data-theme='retro'] .row.selected .name,
+:root[data-theme='retro'] .row.selected .meta * { color: #fff; }
+:root[data-theme='retro'] .bar { border: 1px solid; border-color: #808080 #fff #fff #808080; }
+:root[data-theme='retro'] .bar .fill { background: repeating-linear-gradient(90deg, #000080 0 8px, transparent 8px 10px); }
+:root[data-theme='retro'] .bar.paused .fill,
+:root[data-theme='retro'] .bar.canceled .fill,
+:root[data-theme='retro'] .bar.queued .fill { background: repeating-linear-gradient(90deg, #808080 0 8px, transparent 8px 10px); }
+:root[data-theme='retro'] .row .bar { height: 6px; top: 36px; }
+:root[data-theme='retro'] .theme-card.on .theme-preview { outline-color: #000080; }

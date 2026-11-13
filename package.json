@@ -1,0 +1,134 @@
+{
+  "name": "vn-download-manager",
+  "productName": "VN Download Manager",
+  "version": "0.2.0",
+  "description": "VN Download Manager (VDM): a minimal, fast, multi-connection download manager for Windows",
+  "main": "src/main/main.js",
+  "author": "Mojtaba",
+  "license": "MIT",
+  "homepage": "https://github.com/protungtq/vdm",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/protungtq/vdm.git"
+  },
+  "bugs": {
+    "url": "https://github.com/protungtq/vdm/issues"
+  },
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test --test-concurrency=1 test/engine.test.js test/media.test.js test/updater.test.js test/extension.test.js test/server.test.js test/proxy.test.js",
+    "icons": "node scripts/make-icons.js",
+    "ui-check": "node scripts/ui-check.js shots light",
+    "dist:win": "electron-builder --win nsis portable --x64 --publish never",
+    "pack:win": "electron-builder --win dir --x64",
+    "dist:mac": "electron-builder --mac dmg --x64 --arm64 --publish never"
+  },
+  "devDependencies": {
+    "@fontsource-variable/manrope": "^5.3.0",
+    "electron": "45.2.3",
+    "electron-builder": "^26.0.12",
+    "png-to-ico": "^3.0.2",
+    "resedit": "^3.1.0"
+  },
+  "build": {
+    "appId": "vn.game8.vdm",
+    "productName": "VN Download Manager",
+    "copyright": "Copyright © 2026 Mojtaba",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "extension",
+        "to": "extension"
+      }
+    ],
+    "asar": true,
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "executableName": "VDM"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "VN Download Manager",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "artifactName": "VDM-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "VDM-Portable-${version}.${ext}"
+    },
+    "publish": null,
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "build/icon-mac.png",
+      "category": "public.app-category.utilities",
+      "artifactName": "VDM-${version}-mac-${arch}.${ext}",
+      "identity": "-",
+      "darkModeSupport": true,
+      "minimumSystemVersion": "11.0",
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false
+    },
+    "dmg": {
+      "title": "VDM ${version}",
+      "artifactName": "VDM-${version}-mac-${arch}.${ext}",
+      "contents": [
+        {
+          "x": 150,
+          "y": 190
+        },
+        {
+          "x": 390,
+          "y": 190,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "window": {
+        "width": 540,
+        "height": 380
+      }
+    }
+  },
+  "overrides": {
+    "minimatch@>=7.0.0 <11.0.1": "^11.0.8"
+  },
+  "dependencies": {
+    "http-proxy-agent": "^7.0.2",
+    "https-proxy-agent": "^7.0.6",
+    "socks-proxy-agent": "^8.0.5"
+  }
+}
