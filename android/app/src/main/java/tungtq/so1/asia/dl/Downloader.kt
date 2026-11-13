@@ -1,5 +1,6 @@
 package tungtq.so1.asia.dl
 
+import android.content.Context
 import android.os.Environment
 import android.util.Log
 import com.yausername.youtubedl_android.YoutubeDL
@@ -63,6 +64,22 @@ object Downloader {
     @Volatile
     private var cancelRequested = false
 
+    @Volatile
+    private var appContext: Context? = null
+
+    /** Gọi một lần từ Application để Downloader đọc được file cookie đã lưu. */
+    fun init(context: Context) {
+        appContext = context.applicationContext
+    }
+
+    /** Gắn file cookie (nếu có) vào request yt-dlp để tải link cần đăng nhập. */
+    private fun YoutubeDLRequest.withCookies(): YoutubeDLRequest {
+        val context = appContext
+        val file = context?.let { CookieStore.cookieFileIfAny(it) }
+        if (file != null) addOption("--cookies", file.absolutePath)
+        return this
+    }
+
     private val URL_PATTERN: Pattern =
         Pattern.compile("https?://[^\\s\"'<>]+", Pattern.CASE_INSENSITIVE)
 
@@ -110,6 +127,7 @@ object Downloader {
         val request = YoutubeDLRequest(url).apply {
             addOption("--no-playlist")
             addOption("--no-warnings")
+            withCookies()
         }
         val info: VideoInfo = YoutubeDL.getInstance().getInfo(request)
         val formats = info.formats ?: emptyList()
@@ -435,6 +453,7 @@ object Downloader {
             addOption("--no-playlist")
             addOption("--no-mtime")
             addOption("--no-warnings")
+            withCookies()
             addOption("-o", dir.absolutePath + "/%(title)s.%(ext)s")
             if (option.isAudioOnly) {
                 addOption("--extract-audio")

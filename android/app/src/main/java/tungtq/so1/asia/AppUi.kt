@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.FolderOpen
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
@@ -182,6 +183,21 @@ fun VdmApp(viewModel: MainViewModel) {
             DownloadedFilesScreen(
                 viewModel = viewModel,
                 onClose = viewModel::closeDownloadedFiles,
+            )
+            return@MaterialTheme
+        }
+        val cookiePlatform = uiState.cookieWebViewPlatform
+        if (cookiePlatform != null) {
+            CookieWebViewScreen(
+                platform = cookiePlatform,
+                onClose = viewModel::closeCookieWebView,
+            )
+            return@MaterialTheme
+        }
+        if (uiState.showCookiePlatforms) {
+            CookiePlatformsScreen(
+                onOpenPlatform = viewModel::openCookieWebView,
+                onClose = viewModel::closeCookiePlatforms,
             )
             return@MaterialTheme
         }
@@ -437,6 +453,15 @@ fun VdmApp(viewModel: MainViewModel) {
                                     },
                                 )
                             }
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = { viewModel.openCookiePlatforms() },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(Icons.Default.Lock, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Cookie & đăng nhập")
                         }
                         Spacer(Modifier.height(8.dp))
                         Text(

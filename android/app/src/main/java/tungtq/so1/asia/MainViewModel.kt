@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tungtq.so1.asia.dl.CookiePlatform
 import tungtq.so1.asia.dl.DownloadService
 import tungtq.so1.asia.dl.DownloadState
 import tungtq.so1.asia.dl.Downloader
@@ -35,6 +36,8 @@ data class VdmUiState(
     val preview: PreviewMedia? = null,
     val showImageViewer: Boolean = false,
     val showDownloadedFiles: Boolean = false,
+    val showCookiePlatforms: Boolean = false,
+    val cookieWebViewPlatform: CookiePlatform? = null,
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -109,10 +112,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 }
             } catch (e: Exception) {
+                val raw = e.message ?: "lỗi không rõ"
+                val needsLogin = raw.contains("cookie", ignoreCase = true) ||
+                    raw.contains("authentication", ignoreCase = true) ||
+                    raw.contains("login", ignoreCase = true)
+                val hint = if (needsLogin) {
+                    "\nLink này có thể cần đăng nhập. Mở mục Cookie & đăng nhập " +
+                        "để lấy cookie rồi thử lại."
+                } else {
+                    ""
+                }
                 _uiState.update {
                     it.copy(
                         scanning = false,
-                        message = "Không quét được link này: ${e.message ?: "lỗi không rõ"}",
+                        message = "Không quét được link này: $raw$hint",
                     )
                 }
             }
@@ -251,6 +264,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         } catch (e: ActivityNotFoundException) {
             false
         }
+    }
+
+    fun openCookiePlatforms() {
+        _uiState.update { it.copy(showCookiePlatforms = true) }
+    }
+
+    fun closeCookiePlatforms() {
+        _uiState.update { it.copy(showCookiePlatforms = false) }
+    }
+
+    fun openCookieWebView(platform: CookiePlatform) {
+        _uiState.update { it.copy(cookieWebViewPlatform = platform) }
+    }
+
+    fun closeCookieWebView() {
+        _uiState.update { it.copy(cookieWebViewPlatform = null) }
     }
 
     fun clearMessage() {

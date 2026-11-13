@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import tungtq.so1.asia.dl.Downloader
 
 class VdmApplication : Application() {
 
@@ -26,6 +27,7 @@ class VdmApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        Downloader.init(this)
         // Khởi tạo bộ máy yt-dlp + FFmpeg + aria2c (lần đầu chạy sẽ giải nén
         // Python/yt-dlp/FFmpeg từ native libs nên cần chạy nền, tránh chặn UI).
         appScope.launch {
