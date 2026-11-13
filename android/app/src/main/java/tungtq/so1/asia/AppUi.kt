@@ -369,7 +369,7 @@ fun VdmApp(viewModel: MainViewModel) {
                         }
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            "Chỉ tải nội dung bố có quyền lưu giữ. Một số trang đổi cấu trúc liên tục, nếu tải lỗi thì bấm cập nhật bộ quét rồi thử lại.",
+                            "Chỉ tải nội dung bạn có quyền lưu giữ. Một số trang đổi cấu trúc liên tục, nếu tải lỗi hãy bấm cập nhật bộ quét rồi thử lại.",
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }

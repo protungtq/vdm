@@ -75,7 +75,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun scan() {
         val url = _uiState.value.urlText.trim()
         if (url.isBlank()) {
-            _uiState.update { it.copy(message = "Bố dán link video vào trước đã nhé.") }
+            _uiState.update { it.copy(message = "Dán link video vào trước đã nhé.") }
             return
         }
         val directUrl = Downloader.extractUrl(url) ?: url
@@ -109,7 +109,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val url = Downloader.extractUrl(state.urlText) ?: state.urlText
         DownloadState.reset()
         DownloadService.start(context, url, option, scanned.title)
-        _uiState.update { it.copy(message = "Đang tải, bố cứ dùng điện thoại bình thường nhé.") }
+        _uiState.update { it.copy(message = "Đang tải. Bạn cứ dùng điện thoại bình thường nhé.") }
     }
 
     fun cancelDownload(context: Context) {
