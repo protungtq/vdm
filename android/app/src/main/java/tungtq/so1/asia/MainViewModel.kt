@@ -1,7 +1,10 @@
 package tungtq.so1.asia
 
 import android.app.Application
+import android.content.ActivityNotFoundException
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.yausername.youtubedl_android.YoutubeDL
@@ -15,6 +18,7 @@ import kotlinx.coroutines.withContext
 import tungtq.so1.asia.dl.DownloadService
 import tungtq.so1.asia.dl.DownloadState
 import tungtq.so1.asia.dl.Downloader
+import tungtq.so1.asia.dl.PreviewMedia
 import tungtq.so1.asia.dl.ScannedVideo
 import tungtq.so1.asia.dl.VideoFormatOption
 
@@ -27,6 +31,8 @@ data class VdmUiState(
     val updatingEngine: Boolean = false,
     val engineReady: Boolean = false,
     val engineError: String? = null,
+    val preview: PreviewMedia? = null,
+    val showImageViewer: Boolean = false,
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -68,7 +74,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
             return
         }
-        _uiState.update { it.copy(urlText = url, message = null, scanned = null) }
+        _uiState.update {
+            it.copy(urlText = url, message = null, scanned = null, preview = null, showImageViewer = false)
+        }
         scan()
     }
 
@@ -80,7 +88,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         val directUrl = Downloader.extractUrl(url) ?: url
         viewModelScope.launch {
-            _uiState.update { it.copy(scanning = true, message = null, scanned = null) }
+            _uiState.update {
+                it.copy(
+                    scanning = true,
+                    message = null,
+                    scanned = null,
+                    preview = null,
+                    showImageViewer = false,
+                )
+            }
             try {
                 val scanned = Downloader.fetchInfo(directUrl)
                 _uiState.update {
@@ -150,6 +166,61 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+    }
+
+    /** Bản xem trước theo lựa chọn đang chọn: chọn "Chỉ âm thanh" thì nghe thử bản audio. */
+    private fun currentPreview(): PreviewMedia? {
+        val scanned = _uiState.value.scanned ?: return null
+        val selected = scanned.options.firstOrNull { it.formatSpec == _uiState.value.selectedSpec }
+        return if (selected?.isAudioOnly == true) {
+            scanned.previewAudio ?: scanned.previewVideo
+        } else {
+            scanned.previewVideo
+        }
+    }
+
+    /** Mở màn hình xem trước / nghe thử ngay trong app. */
+    fun openPreview() {
+        val preview = currentPreview()
+        if (preview == null) {
+            _uiState.update { it.copy(message = "Link này không có bản xem trước.") }
+            return
+        }
+        _uiState.update { it.copy(preview = preview) }
+    }
+
+    fun closePreview() {
+        _uiState.update { it.copy(preview = null) }
+    }
+
+    /** Mở link xem trước bằng app khác (VLC, MX Player...). */
+    fun openExternalPlayer(context: Context) {
+        val preview = _uiState.value.preview ?: currentPreview()
+        if (preview == null) {
+            _uiState.update { it.copy(message = "Link này không có bản xem trước.") }
+            return
+        }
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            if (preview.mimeType != null) {
+                setDataAndType(Uri.parse(preview.url), preview.mimeType)
+            } else {
+                data = Uri.parse(preview.url)
+            }
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            context.startActivity(Intent.createChooser(intent, "Mở bằng…"))
+        } catch (e: ActivityNotFoundException) {
+            _uiState.update { it.copy(message = "Không tìm thấy app nào mở được link này.") }
+        }
+    }
+
+    fun openImageViewer() {
+        _uiState.update { it.copy(showImageViewer = true) }
+    }
+
+    fun closeImageViewer() {
+        _uiState.update { it.copy(showImageViewer = false) }
     }
 
     fun clearMessage() {

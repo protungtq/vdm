@@ -12,8 +12,8 @@ android {
         applicationId = "tungtq.so1.asia"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.1.1"
+        versionCode = 3
+        versionName = "0.2.0"
 
         ndk {
             // youtubedl-android nhúng Python/FFmpeg/aria2c cho cả 4 kiến trúc
@@ -72,4 +72,9 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.material:material-icons-extended")
     debugImplementation("androidx.compose.ui:ui-tooling")
+
+    // Player xem trước tích hợp (Media3 ExoPlayer).
+    implementation(platform("androidx.media3:media3-bom:1.5.1"))
+    implementation("androidx.media3:media3-exoplayer")
+    implementation("androidx.media3:media3-ui")
 }

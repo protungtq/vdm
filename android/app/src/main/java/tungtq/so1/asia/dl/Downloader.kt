@@ -20,6 +20,16 @@ data class VideoFormatOption(
     val isAudioOnly: Boolean = false,
 )
 
+/** Nội dung xem trước/nghe thử sau khi quét: link trực tiếp + header cần kèm khi mở. */
+data class PreviewMedia(
+    val url: String,
+    val headers: Map<String, String> = emptyMap(),
+    val mimeType: String? = null,
+    val isAudioOnly: Boolean = false,
+    /** Bản xem trước là video rời, có thể không có tiếng. */
+    val mayLackAudio: Boolean = false,
+)
+
 /** Thông tin video sau khi quét link. */
 data class ScannedVideo(
     val title: String,
@@ -28,6 +38,8 @@ data class ScannedVideo(
     val thumbnailUrl: String?,
     val webpageUrl: String?,
     val options: List<VideoFormatOption>,
+    val previewVideo: PreviewMedia? = null,
+    val previewAudio: PreviewMedia? = null,
 )
 
 object Downloader {
@@ -60,6 +72,7 @@ object Downloader {
             addOption("--no-warnings")
         }
         val info: VideoInfo = YoutubeDL.getInstance().getInfo(request)
+        val formats = info.formats ?: emptyList()
         ScannedVideo(
             title = info.title ?: url,
             uploader = info.uploader,
@@ -67,6 +80,8 @@ object Downloader {
             thumbnailUrl = info.thumbnail,
             webpageUrl = info.webpageUrl,
             options = buildOptions(info),
+            previewVideo = buildPreviewVideo(formats),
+            previewAudio = buildPreviewAudio(formats),
         )
     }
 
@@ -114,6 +129,63 @@ object Downloader {
             isAudioOnly = true,
         )
         return options
+    }
+
+    /** Chọn 1 format để xem trước: ưu tiên có cả hình lẫn tiếng, tối đa 1080p cho nhẹ. */
+    private fun buildPreviewVideo(formats: List<VideoFormat>): PreviewMedia? {
+        val withUrl = formats.filter {
+            !it.url.isNullOrBlank() && it.height > 0 && it.vcodec != null && it.vcodec != "none"
+        }
+        val combined = withUrl
+            .filter { it.acodec != null && it.acodec != "none" }
+            .sortedByDescending { it.height }
+        val combinedPick = combined.firstOrNull { it.height <= 1080 } ?: combined.lastOrNull()
+        if (combinedPick != null) return combinedPick.toPreview(isAudioOnly = false)
+        val videoOnly = withUrl.sortedByDescending { it.height }
+        val pick = videoOnly.firstOrNull { it.height <= 1080 } ?: videoOnly.lastOrNull()
+            ?: return null
+        return pick.toPreview(isAudioOnly = false, mayLackAudio = true)
+    }
+
+    /** Chọn 1 format chỉ âm thanh để nghe thử: ưu tiên bitrate cao nhất. */
+    private fun buildPreviewAudio(formats: List<VideoFormat>): PreviewMedia? {
+        val audio = formats.filter {
+            !it.url.isNullOrBlank() && it.acodec != null && it.acodec != "none" &&
+                (it.vcodec == null || it.vcodec == "none")
+        }.sortedByDescending { it.abr }
+        return audio.firstOrNull()?.toPreview(isAudioOnly = true)
+    }
+
+    private fun VideoFormat.toPreview(
+        isAudioOnly: Boolean,
+        mayLackAudio: Boolean = false,
+    ): PreviewMedia {
+        val directUrl = url ?: ""
+        return PreviewMedia(
+            url = directUrl,
+            headers = httpHeaders ?: emptyMap(),
+            mimeType = mimeTypeFor(ext, directUrl),
+            isAudioOnly = isAudioOnly,
+            mayLackAudio = mayLackAudio,
+        )
+    }
+
+    private fun mimeTypeFor(ext: String?, url: String): String? {
+        if (url.contains(".m3u8")) return "application/x-mpegURL"
+        if (url.contains(".mpd")) return "application/dash+xml"
+        return when (ext?.lowercase()) {
+            "mp4", "m4v" -> "video/mp4"
+            "webm" -> "video/webm"
+            "mkv" -> "video/x-matroska"
+            "mov" -> "video/quicktime"
+            "mp3" -> "audio/mpeg"
+            "m4a" -> "audio/mp4"
+            "opus" -> "audio/opus"
+            "ogg", "oga" -> "audio/ogg"
+            "wav" -> "audio/wav"
+            "flac" -> "audio/flac"
+            else -> null
+        }
     }
 
     private fun formatSizeLabel(bytes: Long?): String? {

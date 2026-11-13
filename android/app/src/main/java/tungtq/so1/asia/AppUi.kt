@@ -12,8 +12,10 @@ import android.os.Environment
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -29,8 +31,11 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentPaste
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.OpenInNew
+import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
@@ -62,10 +67,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import coil.compose.AsyncImage
 import tungtq.so1.asia.dl.Downloader
@@ -159,6 +167,16 @@ fun VdmApp(viewModel: MainViewModel) {
             onPrimary = Color.White,
         ),
     ) {
+        val activePreview = uiState.preview
+        if (activePreview != null) {
+            PlayerScreen(
+                preview = activePreview,
+                title = uiState.scanned?.title ?: "",
+                onClose = viewModel::closePreview,
+                onOpenExternal = { viewModel.openExternalPlayer(context) },
+            )
+            return@MaterialTheme
+        }
         Scaffold(
             topBar = {
                 TopAppBar(
@@ -259,7 +277,8 @@ fun VdmApp(viewModel: MainViewModel) {
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .aspectRatio(16f / 9f)
-                                        .clip(RoundedCornerShape(8.dp)),
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .clickable { viewModel.openImageViewer() },
                                 )
                                 Spacer(Modifier.height(12.dp))
                             }
@@ -300,6 +319,30 @@ fun VdmApp(viewModel: MainViewModel) {
                                 }
                             }
                             Spacer(Modifier.height(12.dp))
+                            if (scanned.previewVideo != null || scanned.previewAudio != null) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    OutlinedButton(
+                                        onClick = { viewModel.openPreview() },
+                                        modifier = Modifier.weight(1f),
+                                    ) {
+                                        Icon(Icons.Default.PlayArrow, contentDescription = null)
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("Xem trước")
+                                    }
+                                    OutlinedButton(
+                                        onClick = { viewModel.openExternalPlayer(context) },
+                                        modifier = Modifier.weight(1f),
+                                    ) {
+                                        Icon(Icons.Default.OpenInNew, contentDescription = null)
+                                        Spacer(Modifier.width(8.dp))
+                                        Text("Mở app khác")
+                                    }
+                                }
+                                Spacer(Modifier.height(12.dp))
+                            }
                             if (download.isDownloading) {
                                 LinearProgressIndicator(
                                     progress = { (download.progress / 100f).coerceIn(0f, 1f) },
@@ -374,6 +417,46 @@ fun VdmApp(viewModel: MainViewModel) {
                         )
                     }
                 }
+            }
+        }
+        if (uiState.showImageViewer) {
+            uiState.scanned?.thumbnailUrl?.let { thumb ->
+                ImageViewerDialog(imageUrl = thumb, onClose = viewModel::closeImageViewer)
+            }
+        }
+    }
+}
+
+/** Xem ảnh đại diện phóng to toàn màn hình, bấm vào ảnh hoặc nút X để đóng. */
+@Composable
+fun ImageViewerDialog(imageUrl: String, onClose: () -> Unit) {
+    Dialog(
+        onDismissRequest = onClose,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+                .clickable { onClose() },
+        ) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize(),
+            )
+            IconButton(
+                onClick = onClose,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .padding(8.dp),
+            ) {
+                Icon(
+                    Icons.Default.Close,
+                    contentDescription = "Đóng",
+                    tint = Color.White,
+                )
             }
         }
     }
