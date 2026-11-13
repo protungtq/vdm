@@ -73,8 +73,8 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended")
     debugImplementation("androidx.compose.ui:ui-tooling")
 
-    // Player xem trước tích hợp (Media3 ExoPlayer).
-    implementation(platform("androidx.media3:media3-bom:1.5.1"))
-    implementation("androidx.media3:media3-exoplayer")
-    implementation("androidx.media3:media3-ui")
+    // Player xem trước tích hợp (Media3 ExoPlayer). Không dùng BOM vì
+    // media3-bom không phân giải được trên kho Google Maven, ghi version trực tiếp.
+    implementation("androidx.media3:media3-exoplayer:1.6.1")
+    implementation("androidx.media3:media3-ui:1.6.1")
 }
