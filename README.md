@@ -233,7 +233,7 @@ The UI uses the **Manrope** font (bundled, SIL Open Font License), so it looks t
 
 **Mojtaba Navade** (original Keyvan Download Manager) · [Telegram](https://t.me/mojtabatn) · [Instagram](https://www.instagram.com/mojtabanavade)
 
-Forked, renamed and rebranded as VN Download Manager by **Lương Văn Tùng** · [Game8](https://game8.info) · [GitHub](https://github.com/protungtq)
+Forked, renamed and rebranded as VN Download Manager by **TungTQ** · [Game8](https://game8.info) · [GitHub](https://github.com/protungtq)
 
 ## License
 
