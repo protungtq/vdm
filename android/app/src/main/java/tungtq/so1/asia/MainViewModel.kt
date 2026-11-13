@@ -324,6 +324,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 urlText = state.douyinWebViewUrl ?: state.urlText,
                 scanned = ScannedVideo(
                     title = pageTitle?.takeIf { t -> t.isNotBlank() } ?: "Video Douyin",
+                    uploader = null,
+                    durationSeconds = null,
+                    thumbnailUrl = null,
                     webpageUrl = state.douyinWebViewUrl,
                     options = listOf(option),
                     previewVideo = PreviewMedia(
