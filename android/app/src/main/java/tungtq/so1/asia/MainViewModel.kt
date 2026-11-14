@@ -306,12 +306,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     /** WebView đã lấy được link video trực tiếp: dựng kết quả quét để tải như thường. */
-    fun onDouyinVideoFound(directUrl: String, pageTitle: String?) {
+    fun onDouyinVideoFound(directUrl: String, pageTitle: String?, noWatermark: Boolean) {
         val state = _uiState.value
         val referer = "https://www.douyin.com/"
         val option = VideoFormatOption(
             formatSpec = Downloader.DIRECT_SPEC,
-            label = "Video (tải trực tiếp)",
+            label = if (noWatermark) {
+                "Video · Không logo (tải trực tiếp)"
+            } else {
+                "Video (tải trực tiếp)"
+            },
             sizeLabel = null,
             directUrl = directUrl,
             referer = referer,
