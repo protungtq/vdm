@@ -37,6 +37,7 @@ import androidx.media3.common.Player
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.MergingMediaSource
 import androidx.media3.ui.PlayerView
 import tungtq.so1.asia.dl.PreviewMedia
 
@@ -44,29 +45,52 @@ import tungtq.so1.asia.dl.PreviewMedia
  * Màn hình xem trước video / nghe thử âm thanh ngay trong app.
  * Player tự kèm header của link gốc (User-Agent, Referer...) nên mở được
  * cả những link mà app ngoài không tự xử lý được.
+ * Video rời không có tiếng (vd bản HD của Facebook) thì gộp thêm luồng
+ * âm thanh [audioPreview] để xem trước có cả hình lẫn tiếng.
  */
 @Composable
 fun PlayerScreen(
     preview: PreviewMedia,
+    audioPreview: PreviewMedia? = null,
     title: String,
     onClose: () -> Unit,
     onOpenExternal: () -> Unit,
 ) {
     val context = LocalContext.current
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    // Chỉ gộp tiếng khi bản video xem trước không có tiếng và có luồng âm thanh rời.
+    val mergeAudio = preview.mayLackAudio && !preview.isAudioOnly && audioPreview != null
 
-    val player = remember(preview.url) {
-        val dataSourceFactory = DefaultHttpDataSource.Factory()
-            .setDefaultRequestProperties(preview.headers)
+    val player = remember(preview.url, audioPreview?.url) {
+        val videoFactory = DefaultMediaSourceFactory(
+            DefaultHttpDataSource.Factory()
+                .setDefaultRequestProperties(preview.headers),
+        )
+        val videoSource = videoFactory.createMediaSource(
+            MediaItem.Builder()
+                .setUri(preview.url)
+                .setMimeType(preview.mimeType)
+                .build(),
+        )
+        val mediaSource = if (mergeAudio && audioPreview != null) {
+            val audioFactory = DefaultMediaSourceFactory(
+                DefaultHttpDataSource.Factory()
+                    .setDefaultRequestProperties(audioPreview.headers),
+            )
+            val audioSource = audioFactory.createMediaSource(
+                MediaItem.Builder()
+                    .setUri(audioPreview.url)
+                    .setMimeType(audioPreview.mimeType)
+                    .build(),
+            )
+            MergingMediaSource(videoSource, audioSource)
+        } else {
+            videoSource
+        }
         ExoPlayer.Builder(context)
-            .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
             .build()
             .apply {
-                val item = MediaItem.Builder()
-                    .setUri(preview.url)
-                    .setMimeType(preview.mimeType)
-                    .build()
-                setMediaItem(item)
+                setMediaSource(mediaSource)
                 addListener(object : Player.Listener {
                     override fun onPlayerError(error: PlaybackException) {
                         errorMessage =
@@ -77,7 +101,7 @@ fun PlayerScreen(
                 play()
             }
     }
-    DisposableEffect(preview.url) {
+    DisposableEffect(preview.url, audioPreview?.url) {
         onDispose { player.release() }
     }
     BackHandler(onBack = onClose)
@@ -131,7 +155,7 @@ fun PlayerScreen(
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.padding(horizontal = 8.dp),
             )
-            if (preview.mayLackAudio) {
+            if (preview.mayLackAudio && !mergeAudio) {
                 Text(
                     text = "Bản xem trước này có thể không có tiếng.",
                     color = Color.White.copy(alpha = 0.7f),

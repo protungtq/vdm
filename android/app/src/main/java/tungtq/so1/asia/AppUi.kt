@@ -176,6 +176,7 @@ fun VdmApp(viewModel: MainViewModel) {
         if (activePreview != null) {
             PlayerScreen(
                 preview = activePreview,
+                audioPreview = uiState.scanned?.previewAudio,
                 title = uiState.scanned?.title ?: "",
                 onClose = viewModel::closePreview,
                 onOpenExternal = { viewModel.openExternalPlayer(context) },

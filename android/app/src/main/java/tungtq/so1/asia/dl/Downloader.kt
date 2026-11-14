@@ -502,18 +502,58 @@ object Downloader {
         cancelRequested = false
         val dir = downloadDir()
         if (!dir.exists()) dir.mkdirs()
+        if (!dir.exists() || !dir.canWrite()) {
+            throw Exception(
+                "Không ghi được vào thư mục Download/VDM. " +
+                    "Hãy cấp quyền truy cập mọi file cho app rồi thử lại.",
+            )
+        }
         val directUrl = option.directUrl
         if (!directUrl.isNullOrBlank()) {
             downloadDirect(directUrl, dir, option.isAudioOnly, option.referer, onProgress)
             // Trả về response rỗng để giữ nguyên chữ ký hàm cho DownloadService.
             return@withContext YoutubeDLResponse(emptyList(), 0, 0L, "", "")
         }
-        val request = YoutubeDLRequest(url).apply {
+        val request = buildYtDlpRequest(url, option, dir, useAria2 = true)
+        try {
+            return@withContext executeRequest(request, onProgress)
+        } catch (ariaError: Exception) {
+            // Chỉ thử lại khi lỗi đến từ trình tải phụ aria2 (vd exit code 16:
+            // không tạo được file). Lỗi do link/video thì thử lại cũng vậy.
+            val message = ariaError.message ?: ""
+            if (cancelRequested || !message.contains("aria2c", ignoreCase = true)) {
+                throw ariaError
+            }
+            Log.w(TAG, "aria2 download failed, retrying with built-in downloader", ariaError)
+            val fallback = buildYtDlpRequest(url, option, dir, useAria2 = false)
+            try {
+                return@withContext executeRequest(fallback, onProgress)
+            } catch (fallbackError: Exception) {
+                throw Exception(
+                    "Tải bằng trình tải phụ thất bại (${ariaError.message}); " +
+                        "thử lại bằng cách tải thường cũng thất bại " +
+                        "(${fallbackError.message})",
+                )
+            }
+        }
+    }
+
+    /** Dựng request yt-dlp. [useAria2] = false thì dùng trình tải có sẵn của yt-dlp. */
+    private fun buildYtDlpRequest(
+        url: String,
+        option: VideoFormatOption,
+        dir: File,
+        useAria2: Boolean,
+    ): YoutubeDLRequest {
+        return YoutubeDLRequest(url).apply {
             addOption("--no-playlist")
             addOption("--no-mtime")
             addOption("--no-warnings")
             withCookies()
-            addOption("-o", dir.absolutePath + "/%(title)s.%(ext)s")
+            // Tên file cắt còn tối đa 60 ký tự tiêu đề + id: tiêu đề dài (nhất là
+            // tiếng Việt có dấu, mỗi chữ tới 3 byte) vượt 255 byte sẽ làm aria2
+            // không tạo được file (exit code 16). Kèm id để khỏi trùng tên.
+            addOption("-o", dir.absolutePath + "/%(title).60s-[%(id)s].%(ext)s")
             if (option.isAudioOnly) {
                 addOption("--extract-audio")
                 addOption("--audio-format", "mp3")
@@ -521,11 +561,26 @@ object Downloader {
             } else {
                 addOption("-f", option.formatSpec)
             }
-            // aria2c tải đa kết nối cho nhanh, giống bản desktop.
-            addOption("--downloader", "libaria2c.so")
+            if (useAria2) {
+                // aria2c tải đa kết nối cho nhanh, giống bản desktop.
+                // file-allocation=none: tránh lỗi tạo file trên bộ nhớ ngoài
+                // của Android; allow-overwrite: tải lại cùng tên không bị từ chối.
+                addOption("--downloader", "libaria2c.so")
+                addOption(
+                    "--downloader-args",
+                    "aria2c:--file-allocation=none --allow-overwrite=true",
+                )
+            }
         }
+    }
+
+    /** Chạy request yt-dlp, báo tiến trình qua callback. */
+    private fun executeRequest(
+        request: YoutubeDLRequest,
+        onProgress: (Float, Long) -> Unit,
+    ): YoutubeDLResponse {
         // execute() nhận callback dạng lambda (tiến trình %, số giây còn lại, trạng thái).
-        YoutubeDL.getInstance().execute(request, PROCESS_ID) { progress, etaInSeconds, _ ->
+        return YoutubeDL.getInstance().execute(request, PROCESS_ID) { progress, etaInSeconds, _ ->
             onProgress(progress, etaInSeconds)
         }
     }
