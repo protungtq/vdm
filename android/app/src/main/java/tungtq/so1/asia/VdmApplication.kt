@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import tungtq.so1.asia.dl.Downloader
+import tungtq.so1.asia.dl.FilterStore
 
 class VdmApplication : Application() {
 
@@ -28,6 +29,10 @@ class VdmApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         Downloader.init(this)
+        // Nạp bộ lọc quảng cáo đã lưu trong máy và kiểm tra bản mới, để
+        // trình duyệt trong app chặn được ngay từ lần mở đầu tiên.
+        FilterStore.loadCached(this)
+        FilterStore.refreshIfNeeded(this)
         // Khởi tạo bộ máy yt-dlp + FFmpeg + aria2c (lần đầu chạy sẽ giải nén
         // Python/yt-dlp/FFmpeg từ native libs nên cần chạy nền, tránh chặn UI).
         appScope.launch {

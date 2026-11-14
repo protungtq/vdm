@@ -33,6 +33,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -53,6 +54,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tungtq.so1.asia.dl.DouyinDirect
 import tungtq.so1.asia.dl.Downloader
+import tungtq.so1.asia.dl.FilterStore
 
 /**
  * WebViewClient chỉ cho http/https chạy trong WebView. Các link mở app ngoài
@@ -113,6 +115,11 @@ fun DouyinWebViewScreen(
     var triedAutoLookup by remember { mutableStateOf(false) }
     var lookingUp by remember { mutableStateOf(false) }
     var autoDownloaded by remember { mutableStateOf(false) }
+
+    // Mở trình duyệt thì kiểm tra bộ lọc mới, để lần chặn sau dùng bản mới nhất.
+    LaunchedEffect(Unit) {
+        FilterStore.refreshIfNeeded(context)
+    }
 
     fun addCaptured(url: String, label: String) {
         // Gộp link trùng: cùng 1 file video nhưng chữ ký khác nhau thì chỉ giữ 1.
@@ -353,6 +360,17 @@ fun DouyinWebViewScreen(
                                         notifyCaptured()
                                     }
                                     return null
+                                }
+                                // Bộ lọc quảng cáo: chặn request khớp rule, trừ
+                                // frame chính để trang vẫn tải được.
+                                if (!request.isForMainFrame &&
+                                    FilterStore.isBlocked(url, view.url)
+                                ) {
+                                    return WebResourceResponse(
+                                        "text/plain",
+                                        "utf-8",
+                                        ByteArrayInputStream(ByteArray(0)),
+                                    )
                                 }
                                 // Ảnh và quảng cáo/theo dõi: chặn cho trang nhẹ, trình
                                 // phát video không cần chúng để chạy.
