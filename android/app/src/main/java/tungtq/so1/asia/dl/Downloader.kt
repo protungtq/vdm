@@ -84,11 +84,36 @@ object Downloader {
     }
 
     /** Gắn file cookie (nếu có) vào request yt-dlp để tải link cần đăng nhập. */
-    private fun YoutubeDLRequest.withCookies(): YoutubeDLRequest {
-        val context = appContext
-        val file = context?.let { CookieStore.cookieFileIfAny(it) }
-        if (file != null) addOption("--cookies", file.absolutePath)
+    private fun YoutubeDLRequest.withCookieFile(file: File?): YoutubeDLRequest {
+        if (file != null && file.exists()) addOption("--cookies", file.absolutePath)
         return this
+    }
+
+    /**
+     * Lỗi đúng dạng #15161 của yt-dlp: Facebook trả về trang mà bộ quét không
+     * đọc được khi request gửi kèm cookie (cần impersonation, Android không có).
+     */
+    private fun isFacebookParseError(e: Exception): Boolean {
+        val message = e.message ?: return false
+        return message.contains("[facebook]", ignoreCase = true) &&
+            message.contains("Cannot parse data", ignoreCase = true)
+    }
+
+    /**
+     * Lỗi Facebook đọc được cho người dùng, thay cho bản dump dài của yt-dlp.
+     * Lỗi khác thì giữ nguyên.
+     */
+    private fun facebookGuidance(e: Exception): Exception {
+        val message = e.message ?: ""
+        return if (message.contains("Cannot parse data", ignoreCase = true)) {
+            Exception(
+                "Không đọc được video Facebook này (Facebook đổi cách trả dữ liệu, " +
+                    "bộ quét chưa theo kịp). Hãy bấm \"Cập nhật bộ quét\" rồi quét lại; " +
+                    "nếu vẫn không được thì video này hiện chưa tải được.",
+            )
+        } else {
+            e
+        }
     }
 
     private val URL_PATTERN: Pattern =
@@ -117,10 +142,23 @@ object Downloader {
      */
     suspend fun fetchInfo(url: String): ScannedVideo = withContext(Dispatchers.IO) {
         val resolvedUrl = resolveRedirects(url)
+        val cookieFile = appContext?.let { CookieStore.cookieFileIfAny(it) }
         try {
-            fetchViaYtDlp(resolvedUrl)
+            fetchViaYtDlp(resolvedUrl, cookieFile)
         } catch (ytError: Exception) {
             Log.w(TAG, "yt-dlp scan failed, trying fallback", ytError)
+            // Lỗi #15161: request gửi kèm cookie làm Facebook trả về dạng trang
+            // mà bộ quét không đọc được. Thử lại 1 lần không gửi cookie:
+            // video công khai thường đọc được bình thường.
+            if (isFacebookParseError(ytError) && cookieFile != null) {
+                try {
+                    return@withContext fetchViaYtDlp(resolvedUrl, null)
+                } catch (retryError: Exception) {
+                    Log.w(TAG, "facebook no-cookie retry failed", retryError)
+                    throw facebookGuidance(retryError)
+                }
+            }
+            if (isFacebookParseError(ytError)) throw facebookGuidance(ytError)
             if (!isTikTokUrl(resolvedUrl)) throw ytError
             try {
                 fetchViaTikwm(resolvedUrl)
@@ -134,11 +172,11 @@ object Downloader {
         }
     }
 
-    private fun fetchViaYtDlp(url: String): ScannedVideo {
+    private fun fetchViaYtDlp(url: String, cookieFile: File?): ScannedVideo {
         val request = YoutubeDLRequest(url).apply {
             addOption("--no-playlist")
             addOption("--no-warnings")
-            withCookies()
+            withCookieFile(cookieFile)
         }
         val info: VideoInfo = YoutubeDL.getInstance().getInfo(request)
         val formats = info.formats ?: emptyList()
@@ -514,9 +552,35 @@ object Downloader {
             // Trả về response rỗng để giữ nguyên chữ ký hàm cho DownloadService.
             return@withContext YoutubeDLResponse(emptyList(), 0, 0L, "", "")
         }
-        val request = buildYtDlpRequest(url, option, dir, useAria2 = true)
+        val cookieFile = appContext?.let { CookieStore.cookieFileIfAny(it) }
         try {
-            return@withContext executeRequest(request, onProgress)
+            return@withContext downloadViaYtDlp(url, option, dir, cookieFile, onProgress)
+        } catch (e: Exception) {
+            // Lỗi #15161 (xem fetchInfo): thử lại 1 lần không gửi cookie.
+            if (isFacebookParseError(e) && cookieFile != null && !cancelRequested) {
+                Log.w(TAG, "facebook download failed with cookies, retrying without", e)
+                try {
+                    return@withContext downloadViaYtDlp(url, option, dir, null, onProgress)
+                } catch (retryError: Exception) {
+                    throw facebookGuidance(retryError)
+                }
+            }
+            if (isFacebookParseError(e)) throw facebookGuidance(e)
+            throw e
+        }
+    }
+
+    /** Tải qua yt-dlp: thử aria2 trước, lỗi do aria2 thì thử lại bằng trình tải thường. */
+    private fun downloadViaYtDlp(
+        url: String,
+        option: VideoFormatOption,
+        dir: File,
+        cookieFile: File?,
+        onProgress: (Float, Long) -> Unit,
+    ): YoutubeDLResponse {
+        val request = buildYtDlpRequest(url, option, dir, cookieFile, useAria2 = true)
+        try {
+            return executeRequest(request, onProgress)
         } catch (ariaError: Exception) {
             // Chỉ thử lại khi lỗi đến từ trình tải phụ aria2 (vd exit code 16:
             // không tạo được file). Lỗi do link/video thì thử lại cũng vậy.
@@ -525,9 +589,9 @@ object Downloader {
                 throw ariaError
             }
             Log.w(TAG, "aria2 download failed, retrying with built-in downloader", ariaError)
-            val fallback = buildYtDlpRequest(url, option, dir, useAria2 = false)
+            val fallback = buildYtDlpRequest(url, option, dir, cookieFile, useAria2 = false)
             try {
-                return@withContext executeRequest(fallback, onProgress)
+                return executeRequest(fallback, onProgress)
             } catch (fallbackError: Exception) {
                 throw Exception(
                     "Tải bằng trình tải phụ thất bại (${ariaError.message}); " +
@@ -543,13 +607,14 @@ object Downloader {
         url: String,
         option: VideoFormatOption,
         dir: File,
+        cookieFile: File?,
         useAria2: Boolean,
     ): YoutubeDLRequest {
         return YoutubeDLRequest(url).apply {
             addOption("--no-playlist")
             addOption("--no-mtime")
             addOption("--no-warnings")
-            withCookies()
+            withCookieFile(cookieFile)
             // Tên file cắt còn tối đa 60 ký tự tiêu đề + id: tiêu đề dài (nhất là
             // tiếng Việt có dấu, mỗi chữ tới 3 byte) vượt 255 byte sẽ làm aria2
             // không tạo được file (exit code 16). Kèm id để khỏi trùng tên.
