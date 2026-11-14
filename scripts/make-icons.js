@@ -1,5 +1,10 @@
 // Renders the app logo (src/renderer/assets/icons/logo.svg, from Figma) to
 // PNGs and packs build/icon.ico, tray icons and the browser-extension icons.
+//
+// NOTE (2026-11-14): build/icon.ico, build/icon.png, build/icon-mac.png and
+// src/renderer/assets/app-256.png were replaced by hand with raster artwork
+// (the new VDM icon). Re-running this script would overwrite them with the
+// old SVG-based renders, so don't run it unless the logo SVG is updated too.
 const fs = require('fs');
 const path = require('path');
 const { chromium } = require('playwright');

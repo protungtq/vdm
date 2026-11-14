@@ -1,7 +1,7 @@
 {
   "name": "vn-download-manager",
   "productName": "VN Download Manager",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "VN Download Manager (VDM): a minimal, fast, multi-connection download manager for Windows",
   "main": "src/main/main.js",
   "author": "Mojtaba",
