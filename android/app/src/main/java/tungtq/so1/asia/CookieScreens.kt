@@ -2,7 +2,6 @@ package tungtq.so1.asia
 
 import android.webkit.CookieManager
 import android.webkit.WebView
-import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
@@ -194,7 +193,7 @@ fun CookieWebViewScreen(platform: CookiePlatform, onClose: () -> Unit) {
                     WebView(ctx).apply {
                         settings.javaScriptEnabled = true
                         settings.domStorageEnabled = true
-                        webViewClient = WebViewClient()
+                        webViewClient = SafeWebViewClient()
                         val cm = CookieManager.getInstance()
                         cm.setAcceptCookie(true)
                         cm.setAcceptThirdPartyCookies(this, true)
