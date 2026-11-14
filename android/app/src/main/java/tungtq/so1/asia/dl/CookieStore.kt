@@ -76,6 +76,12 @@ object CookieStore {
             .getString(platform.name, null).isNullOrBlank()
     }
 
+    /** Chuỗi cookie đã lưu của 1 nền tảng, hoặc null khi chưa có. */
+    fun savedCookies(context: Context, platform: CookiePlatform): String? {
+        return context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getString(platform.name, null)?.takeIf { it.isNotBlank() }
+    }
+
     /** File cookie gộp mọi nền tảng, hoặc null khi chưa có cookie nào. */
     fun cookieFileIfAny(context: Context): File? {
         val file = File(context.cacheDir, FILE_NAME)

@@ -3,6 +3,7 @@ package tungtq.so1.asia.dl
 import android.content.Context
 import android.os.Environment
 import android.util.Log
+import android.webkit.CookieManager
 import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
 import com.yausername.youtubedl_android.YoutubeDLResponse
@@ -11,11 +12,17 @@ import com.yausername.youtubedl_android.mapper.VideoInfo
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileOutputStream
+import java.io.RandomAccessFile
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import java.security.MessageDigest
+import java.util.concurrent.atomic.AtomicLong
 import java.util.regex.Pattern
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 
 /** Một lựa chọn chất lượng để người dùng bấm tải. */
@@ -152,6 +159,49 @@ object Downloader {
         resolveRedirects(url)
     }
 
+    /**
+     * Lấy link Douyin không qua yt-dlp: đọc play_addr (bản không logo) từ trang
+     * share. Trả về null khi không lấy được để caller mở WebView bắt link.
+     */
+    suspend fun fetchDouyinDirect(pageUrl: String): ScannedVideo? =
+        withContext(Dispatchers.IO) {
+            val resolved = resolveRedirects(pageUrl)
+            val videoId = DouyinDirect.extractVideoId(resolved) ?: return@withContext null
+            val webCookies = try {
+                CookieManager.getInstance().getCookie("https://www.douyin.com")
+            } catch (_: Exception) {
+                null
+            }
+            val saved = appContext?.let { CookieStore.savedCookies(it, CookiePlatform.DOUYIN) }
+            val cookies = CookieStore.mergeCookieStrings(webCookies, saved)
+                .takeIf { it.isNotBlank() }
+            val html = DouyinDirect.fetchShareHtml(videoId, cookies) ?: return@withContext null
+            val directUrl = DouyinDirect.extractPlayAddrUrl(html) ?: return@withContext null
+            val title = DouyinDirect.extractShareTitle(html)?.takeIf { it.isNotBlank() }
+                ?: "Video Douyin"
+            val option = VideoFormatOption(
+                formatSpec = DIRECT_SPEC,
+                label = "Video · Không logo (tải trực tiếp)",
+                sizeLabel = null,
+                directUrl = directUrl,
+                referer = DouyinDirect.REFERER,
+            )
+            ScannedVideo(
+                title = title,
+                uploader = null,
+                durationSeconds = null,
+                thumbnailUrl = null,
+                webpageUrl = resolved,
+                options = listOf(option),
+                previewVideo = PreviewMedia(
+                    url = directUrl,
+                    headers = mapOf("Referer" to DouyinDirect.REFERER),
+                    mimeType = "video/mp4",
+                ),
+                viaFallback = true,
+            )
+        }
+
     private fun isTikTokUrl(url: String): Boolean {
         return try {
             URL(url).host.lowercase().endsWith("tiktok.com")
@@ -184,9 +234,9 @@ object Downloader {
             connection.connect()
             val finalUrl = connection.url.toString()
             connection.disconnect()
-            // Chỉ nhận link đích khi nó trỏ tới đúng 1 video, còn không giữ link gốc
-            // để bộ quét tự xử lý link rút gọn.
-            if (finalUrl.contains("/video/")) finalUrl else url
+            // Chỉ nhận link đích khi nó trỏ tới đúng 1 video/bài đăng, còn không giữ
+            // link gốc để bộ quét tự xử lý link rút gọn.
+            if (finalUrl.contains("/video/") || finalUrl.contains("/note/")) finalUrl else url
         } catch (e: Exception) {
             Log.w(TAG, "redirect resolve failed", e)
             url
@@ -480,14 +530,85 @@ object Downloader {
         }
     }
 
-    /** Tải thẳng 1 file từ link trực tiếp (nguồn dự phòng), báo tiến trình theo Content-Length. */
-    private fun downloadDirect(
+    /**
+     * Tải thẳng 1 file từ link trực tiếp (nguồn dự phòng). File từ 4 MB trở lên
+     * mà máy chủ hỗ trợ Range thì chia 4 đoạn tải song song; đứt giữa chừng thì
+     * lần tải sau tải tiếp các đoạn còn thiếu thay vì tải lại từ đầu.
+     */
+    private suspend fun downloadDirect(
         fileUrl: String,
         dir: File,
         isAudio: Boolean,
         referer: String?,
         onProgress: (Float, Long) -> Unit,
-    ) {
+    ) = withContext(Dispatchers.IO) {
+        cleanStaleParts(dir)
+        val ext = if (isAudio) "mp3" else "mp4"
+        val key = sha256Hex(fileUrl).take(16)
+        val partFile = File(dir, "vdm-$key.part")
+        val metaFile = File(dir, "vdm-$key.meta")
+        val probe = probeDownload(fileUrl, referer)
+        val total = probe.total
+        if (probe.rangeSupported && total != null && total >= MIN_SEGMENTED_BYTES) {
+            try {
+                downloadSegmented(fileUrl, referer, partFile, metaFile, total, onProgress)
+            } catch (e: RangeUnsupportedException) {
+                // Máy chủ đổi ý giữa chừng: xóa file dở, tải lại 1 luồng.
+                partFile.delete()
+                metaFile.delete()
+                downloadSingle(fileUrl, referer, partFile, total, onProgress)
+            } catch (e: LinkExpiredException) {
+                // Link ký đã hết hạn: file dở không dùng lại được nữa.
+                partFile.delete()
+                metaFile.delete()
+                throw e
+            }
+        } else {
+            downloadSingle(fileUrl, referer, partFile, total, onProgress)
+        }
+        val outFile = File(dir, "vdm-${System.currentTimeMillis()}.$ext")
+        if (!partFile.renameTo(outFile)) {
+            partFile.copyTo(outFile, overwrite = true)
+            partFile.delete()
+        }
+        metaFile.delete()
+        onProgress(100f, 0L)
+    }
+
+    private data class DownloadProbe(val total: Long?, val rangeSupported: Boolean)
+
+    /** Hỏi máy chủ bằng 1 request Range 0-0: biết tổng dung lượng + có hỗ trợ Range không. */
+    private fun probeDownload(fileUrl: String, referer: String?): DownloadProbe {
+        try {
+            val connection = openDirectConnection(fileUrl, referer)
+            connection.setRequestProperty("Range", "bytes=0-0")
+            try {
+                val code = connection.responseCode
+                if (code == HttpURLConnection.HTTP_PARTIAL) {
+                    val range = connection.getHeaderField("Content-Range") ?: ""
+                    val total = range.substringAfter("/", "").toLongOrNull()?.takeIf { it > 0 }
+                    return DownloadProbe(total, true)
+                }
+                if (code in 200..299) {
+                    return DownloadProbe(
+                        connection.contentLengthLong.takeIf { it > 0 },
+                        false,
+                    )
+                }
+            } finally {
+                try {
+                    connection.inputStream.close()
+                } catch (_: Exception) {
+                }
+                connection.disconnect()
+            }
+        } catch (_: Exception) {
+            // Không dò được thì tải 1 luồng như thường.
+        }
+        return DownloadProbe(null, false)
+    }
+
+    private fun openDirectConnection(fileUrl: String, referer: String?): HttpURLConnection {
         val connection = URL(fileUrl).openConnection() as HttpURLConnection
         connection.instanceFollowRedirects = true
         connection.connectTimeout = 15_000
@@ -496,44 +617,262 @@ object Downloader {
         if (!referer.isNullOrBlank()) {
             connection.setRequestProperty("Referer", referer)
         }
+        return connection
+    }
+
+    /** Tải file lớn theo từng đoạn song song, ghi đúng vị trí vào file dở. */
+    private suspend fun downloadSegmented(
+        fileUrl: String,
+        referer: String?,
+        partFile: File,
+        metaFile: File,
+        total: Long,
+        onProgress: (Float, Long) -> Unit,
+    ) {
+        val partSize = (total + SEGMENT_COUNT - 1) / SEGMENT_COUNT
+        val ranges = (0 until SEGMENT_COUNT).map { i ->
+            val start = i * partSize
+            val end = minOf(start + partSize - 1, total - 1)
+            start to end
+        }
+        // File dở từ lần trước chỉ dùng lại được khi vẫn cùng tổng dung lượng.
+        val meta = readMeta(metaFile)
+        val done: MutableSet<Int>
+        if (meta != null && meta.first == total &&
+            partFile.exists() && partFile.length() == total
+        ) {
+            done = meta.second.toMutableSet()
+        } else {
+            done = mutableSetOf()
+            partFile.delete()
+            metaFile.delete()
+            RandomAccessFile(partFile, "rw").use { it.setLength(total) }
+        }
+        val downloaded = AtomicLong(
+            done.sumOf { i -> ranges[i].second - ranges[i].first + 1 },
+        )
+        val reporter = ProgressReporter(total, System.currentTimeMillis(), onProgress)
+        reporter.report(downloaded.get())
+        coroutineScope {
+            val jobs = ranges.mapIndexed { index, (start, end) ->
+                async {
+                    if (index in done) return@async
+                    downloadSegment(fileUrl, referer, partFile, start, end, downloaded, reporter)
+                    synchronized(META_LOCK) {
+                        done += index
+                        writeMeta(metaFile, total, done)
+                    }
+                }
+            }
+            jobs.awaitAll()
+        }
+        if (partFile.length() != total) throw Exception("File tải về chưa đủ dung lượng.")
+    }
+
+    /** Tải 1 đoạn, thử lại tối đa 3 lần khi mạng chập chờn. */
+    private fun downloadSegment(
+        fileUrl: String,
+        referer: String?,
+        partFile: File,
+        start: Long,
+        end: Long,
+        downloaded: AtomicLong,
+        reporter: ProgressReporter,
+    ) {
+        var attempt = 0
+        while (true) {
+            attempt++
+            try {
+                downloadSegmentOnce(fileUrl, referer, partFile, start, end, downloaded, reporter)
+                return
+            } catch (e: Exception) {
+                if (cancelRequested || e is RangeUnsupportedException ||
+                    e is LinkExpiredException
+                ) {
+                    throw e
+                }
+                if (attempt >= SEGMENT_MAX_ATTEMPTS) throw e
+            }
+        }
+    }
+
+    private fun downloadSegmentOnce(
+        fileUrl: String,
+        referer: String?,
+        partFile: File,
+        start: Long,
+        end: Long,
+        downloaded: AtomicLong,
+        reporter: ProgressReporter,
+    ) {
+        val connection = openDirectConnection(fileUrl, referer)
+        connection.setRequestProperty("Range", "bytes=$start-$end")
+        try {
+            when (connection.responseCode) {
+                HttpURLConnection.HTTP_PARTIAL -> Unit
+                HttpURLConnection.HTTP_FORBIDDEN, HttpURLConnection.HTTP_GONE -> {
+                    throw LinkExpiredException()
+                }
+                HttpURLConnection.HTTP_OK -> throw RangeUnsupportedException()
+                else -> throw Exception("Tải trực tiếp thất bại (HTTP ${connection.responseCode})")
+            }
+            var offset = start
+            BufferedInputStream(connection.inputStream).use { input ->
+                RandomAccessFile(partFile, "rw").use { raf ->
+                    raf.seek(start)
+                    val buffer = ByteArray(DOWNLOAD_BUFFER_SIZE)
+                    while (true) {
+                        if (cancelRequested) throw Exception("Đã hủy lượt tải.")
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        raf.write(buffer, 0, read)
+                        offset += read
+                        downloaded.addAndGet(read.toLong())
+                        reporter.report(downloaded.get())
+                    }
+                }
+            }
+            if (offset != end + 1) throw Exception("Đoạn tải chưa đủ dữ liệu.")
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    /** Tải 1 luồng: file nhỏ, máy chủ không hỗ trợ Range, hoặc dự phòng khi chia đoạn lỗi. */
+    private fun downloadSingle(
+        fileUrl: String,
+        referer: String?,
+        partFile: File,
+        total: Long?,
+        onProgress: (Float, Long) -> Unit,
+    ) {
+        val connection = openDirectConnection(fileUrl, referer)
         try {
             val code = connection.responseCode
             if (code !in 200..299) throw Exception("Tải trực tiếp thất bại (HTTP $code)")
-            val total = connection.contentLengthLong.takeIf { it > 0 }
-            val ext = if (isAudio) "mp3" else "mp4"
-            val outFile = File(dir, "vdm-${System.currentTimeMillis()}.$ext")
+            val knownTotal = total ?: connection.contentLengthLong.takeIf { it > 0 }
             val startAt = System.currentTimeMillis()
             var downloaded = 0L
+            var lastReportAt = 0L
             BufferedInputStream(connection.inputStream).use { input ->
-                FileOutputStream(outFile).use { output ->
-                    val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+                FileOutputStream(partFile).use { output ->
+                    val buffer = ByteArray(DOWNLOAD_BUFFER_SIZE)
                     while (true) {
                         if (cancelRequested) {
-                            outFile.delete()
+                            partFile.delete()
                             throw Exception("Đã hủy lượt tải.")
                         }
                         val read = input.read(buffer)
                         if (read < 0) break
                         output.write(buffer, 0, read)
                         downloaded += read
-                        if (total != null) {
-                            val progress = (downloaded * 100f / total).coerceIn(0f, 100f)
-                            val elapsedSec = (System.currentTimeMillis() - startAt) / 1000.0
-                            val eta = if (elapsedSec > 0 && downloaded > 0) {
-                                ((total - downloaded) / (downloaded / elapsedSec)).toLong()
-                            } else {
-                                0L
+                        if (knownTotal != null) {
+                            val now = System.currentTimeMillis()
+                            if (now - lastReportAt >= 200) {
+                                lastReportAt = now
+                                val progress = (downloaded * 100f / knownTotal)
+                                    .coerceIn(0f, 100f)
+                                val elapsedSec = (now - startAt) / 1000.0
+                                val eta = if (elapsedSec > 0 && downloaded > 0) {
+                                    ((knownTotal - downloaded) / (downloaded / elapsedSec)).toLong()
+                                } else {
+                                    0L
+                                }
+                                onProgress(progress, eta)
                             }
-                            onProgress(progress, eta)
                         }
                     }
                 }
             }
-            onProgress(100f, 0L)
         } finally {
             connection.disconnect()
         }
     }
+
+    /** Gom tiến trình từ nhiều đoạn tải, báo ra ngoài tối đa ~5 lần/giây. */
+    private class ProgressReporter(
+        private val total: Long,
+        private val startAt: Long,
+        private val onProgress: (Float, Long) -> Unit,
+    ) {
+        private var lastReportAt = 0L
+
+        @Synchronized
+        fun report(downloaded: Long) {
+            val now = System.currentTimeMillis()
+            val progress = (downloaded * 100f / total).coerceIn(0f, 100f)
+            if (progress < 100f && now - lastReportAt < 200) return
+            lastReportAt = now
+            val elapsedSec = (now - startAt) / 1000.0
+            val eta = if (elapsedSec > 0 && downloaded > 0) {
+                ((total - downloaded) / (downloaded / elapsedSec)).toLong()
+            } else {
+                0L
+            }
+            onProgress(progress, eta)
+        }
+    }
+
+    /** File ghi chú tải dở: tổng dung lượng + các đoạn đã xong. */
+    private fun readMeta(metaFile: File): Pair<Long, Set<Int>>? {
+        return try {
+            if (!metaFile.exists()) return null
+            var total: Long? = null
+            val done = mutableSetOf<Int>()
+            metaFile.forEachLine { line ->
+                when {
+                    line.startsWith("total=") -> total = line.removePrefix("total=").toLongOrNull()
+                    line.startsWith("done=") -> {
+                        line.removePrefix("done=").toIntOrNull()?.let { done += it }
+                    }
+                }
+            }
+            total?.let { it to done }
+        } catch (_: Exception) {
+            null
+        }
+    }
+
+    private fun writeMeta(metaFile: File, total: Long, done: Set<Int>) {
+        try {
+            val text = buildString {
+                appendLine("total=$total")
+                done.sorted().forEach { appendLine("done=$it") }
+            }
+            metaFile.writeText(text)
+        } catch (_: Exception) {
+            // Ghi chú tải dở thất bại thì lần sau tải lại từ đầu, không chặn lượt tải.
+        }
+    }
+
+    /** Dọn file tải dở quá 24 giờ để khỏi chật thư mục. */
+    private fun cleanStaleParts(dir: File) {
+        try {
+            val cutoff = System.currentTimeMillis() - 24L * 60 * 60 * 1000
+            dir.listFiles()?.forEach { file ->
+                if ((file.name.endsWith(".part") || file.name.endsWith(".meta")) &&
+                    file.lastModified() < cutoff
+                ) {
+                    file.delete()
+                }
+            }
+        } catch (_: Exception) {
+            // Dọn dẹp thất bại thì thôi, không chặn lượt tải.
+        }
+    }
+
+    private fun sha256Hex(text: String): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        return digest.digest(text.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+    }
+
+    /** Máy chủ từ chối Range giữa chừng: caller sẽ tải lại 1 luồng. */
+    private class RangeUnsupportedException : Exception()
+
+    /** Link ký hết hạn (403/410): file dở không dùng lại được, cần quét link mới. */
+    private class LinkExpiredException :
+        Exception("Link tải đã hết hạn. Hãy quét lại link để lấy link mới.")
 
     /** Hủy lượt tải đang chạy (nếu có). */
     fun cancel() {
@@ -547,4 +886,19 @@ object Downloader {
 
     const val AUDIO_SPEC = "__audio__"
     const val DIRECT_SPEC = "__direct__"
+
+    /** File từ 4 MB trở lên mới đáng chia đoạn tải song song. */
+    private const val MIN_SEGMENTED_BYTES = 4L * 1024 * 1024
+
+    /** Số đoạn tải song song cho file lớn. */
+    private const val SEGMENT_COUNT = 4
+
+    /** Mỗi đoạn thử lại tối đa 3 lần khi mạng chập chờn. */
+    private const val SEGMENT_MAX_ATTEMPTS = 3
+
+    /** Bộ đệm đọc/ghi 256 KB cho lượt tải trực tiếp. */
+    private const val DOWNLOAD_BUFFER_SIZE = 262_144
+
+    /** Khóa ghi file ghi chú tải dở từ nhiều đoạn cùng lúc. */
+    private val META_LOCK = Any()
 }

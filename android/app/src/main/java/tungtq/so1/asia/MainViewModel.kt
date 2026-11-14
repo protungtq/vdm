@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import tungtq.so1.asia.dl.CookiePlatform
+import tungtq.so1.asia.dl.DouyinDirect
 import tungtq.so1.asia.dl.DownloadService
 import tungtq.so1.asia.dl.DownloadState
 import tungtq.so1.asia.dl.Downloader
@@ -108,6 +109,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
             try {
+                // Link Douyin: bỏ qua bước quét yt-dlp (API đã chết, quét chỉ mất
+                // thời gian chờ lỗi), thử lấy bản không logo từ trang share trước;
+                // không được thì mở thẳng trình duyệt bắt link.
+                val resolved = Downloader.resolveUrl(directUrl)
+                if (DouyinDirect.isDouyinUrl(resolved)) {
+                    val direct = Downloader.fetchDouyinDirect(resolved)
+                    if (direct != null) {
+                        _uiState.update {
+                            it.copy(
+                                scanning = false,
+                                scanned = direct,
+                                selectedSpec = direct.options.firstOrNull()?.formatSpec,
+                                douyinFallbackUrl = resolved,
+                            )
+                        }
+                    } else {
+                        _uiState.update {
+                            it.copy(
+                                scanning = false,
+                                douyinFallbackUrl = resolved,
+                                douyinWebViewUrl = resolved,
+                            )
+                        }
+                    }
+                    return@launch
+                }
                 val scanned = Downloader.fetchInfo(directUrl)
                 _uiState.update {
                     it.copy(
@@ -131,7 +158,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     it.copy(
                         scanning = false,
                         message = "Không quét được link này: $raw$hint",
-                        douyinFallbackUrl = directUrl.takeIf { isDouyinUrl(it) },
+                        douyinFallbackUrl = directUrl.takeIf { DouyinDirect.isDouyinUrl(it) },
                     )
                 }
             }
@@ -308,7 +335,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     /** WebView đã lấy được link video trực tiếp: dựng kết quả quét để tải như thường. */
     fun onDouyinVideoFound(directUrl: String, pageTitle: String?, noWatermark: Boolean) {
         val state = _uiState.value
-        val referer = "https://www.douyin.com/"
+        val referer = DouyinDirect.REFERER
         val option = VideoFormatOption(
             formatSpec = Downloader.DIRECT_SPEC,
             label = if (noWatermark) {
@@ -345,11 +372,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun isDouyinUrl(url: String): Boolean {
-        return try {
-            java.net.URL(url).host.lowercase().endsWith("douyin.com")
-        } catch (_: Exception) {
-            url.lowercase().contains("douyin.com")
-        }
+    /** WebView bắt được link không logo: dựng kết quả quét rồi tải luôn, khỏi bấm thêm. */
+    fun onDouyinVideoFoundAndDownload(
+        context: Context,
+        directUrl: String,
+        pageTitle: String?,
+        noWatermark: Boolean,
+    ) {
+        onDouyinVideoFound(directUrl, pageTitle, noWatermark)
+        startDownload(context)
     }
 }

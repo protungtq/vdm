@@ -206,6 +206,9 @@ fun VdmApp(viewModel: MainViewModel) {
             DouyinWebViewScreen(
                 videoUrl = douyinUrl,
                 onVideoFound = viewModel::onDouyinVideoFound,
+                onAutoDownload = { url, title, noWatermark ->
+                    viewModel.onDouyinVideoFoundAndDownload(context, url, title, noWatermark)
+                },
                 onClose = viewModel::closeDouyinWebView,
             )
             return@MaterialTheme

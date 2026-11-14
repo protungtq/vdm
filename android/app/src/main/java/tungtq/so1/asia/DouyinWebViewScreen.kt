@@ -46,12 +46,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
-import java.net.HttpURLConnection
+import java.io.ByteArrayInputStream
 import java.net.URL
-import java.util.regex.Pattern
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import tungtq.so1.asia.dl.DouyinDirect
 import tungtq.so1.asia.dl.Downloader
 
 /**
@@ -79,8 +79,12 @@ open class SafeWebViewClient : WebViewClient() {
     }
 }
 
-/** Một link video đã bắt được, kèm nhãn loại (rỗng nếu chưa rõ có logo hay không). */
-private data class CapturedLink(val url: String, val label: String)
+/** Một link video đã bắt được, kèm nhãn loại và dung lượng đo được (nếu có). */
+private data class CapturedLink(
+    val url: String,
+    val label: String,
+    val sizeLabel: String? = null,
+)
 
 /**
  * Mở trang video Douyin trong trình duyệt của app và BẮT request video
@@ -90,13 +94,15 @@ private data class CapturedLink(val url: String, val label: String)
  *
  * Trình phát của Douyin chiếu bản CÓ logo (đầu playwm). Bản không logo lấy
  * bằng cách đổi playwm thành play trên cùng link, hoặc đọc play_addr trong
- * dữ liệu nhúng của trang share iesdouyin.com.
+ * dữ liệu nhúng của trang share iesdouyin.com. Bắt được bản không logo đầu
+ * tiên thì tải luôn, khỏi chọn.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DouyinWebViewScreen(
     videoUrl: String,
     onVideoFound: (directUrl: String, pageTitle: String?, noWatermark: Boolean) -> Unit,
+    onAutoDownload: (directUrl: String, pageTitle: String?, noWatermark: Boolean) -> Unit,
     onClose: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -106,15 +112,41 @@ fun DouyinWebViewScreen(
     var notified by remember { mutableStateOf(false) }
     var triedAutoLookup by remember { mutableStateOf(false) }
     var lookingUp by remember { mutableStateOf(false) }
+    var autoDownloaded by remember { mutableStateOf(false) }
 
     fun addCaptured(url: String, label: String) {
-        if (capturedLinks.any { it.url == url }) return
+        // Gộp link trùng: cùng 1 file video nhưng chữ ký khác nhau thì chỉ giữ 1.
+        val key = captureKey(url)
+        if (capturedLinks.any { captureKey(it.url) == key && it.label == label }) return
         val link = CapturedLink(url, label)
         // Bản không logo luôn xếp lên đầu để dễ thấy.
         if (label == LABEL_NO_WATERMARK) {
             capturedLinks.add(0, link)
         } else {
             capturedLinks.add(link)
+        }
+        // Đo dung lượng để hiện cạnh link, giúp chọn dễ hơn.
+        scope.launch(Dispatchers.IO) {
+            val size = DouyinDirect.probeContentLength(url, DouyinDirect.REFERER)
+            val sizeLabel = DouyinDirect.formatBytes(size)
+            if (sizeLabel != null) {
+                withContext(Dispatchers.Main) {
+                    val idx = capturedLinks.indexOfFirst { it.url == url }
+                    if (idx >= 0) {
+                        capturedLinks[idx] = capturedLinks[idx].copy(sizeLabel = sizeLabel)
+                    }
+                }
+            }
+        }
+        // Bắt được bản không logo đầu tiên thì tải luôn.
+        if (label == LABEL_NO_WATERMARK && !autoDownloaded) {
+            autoDownloaded = true
+            Toast.makeText(
+                context,
+                "Đã bắt được bản không logo, đang tải…",
+                Toast.LENGTH_SHORT,
+            ).show()
+            onAutoDownload(url, webView?.title, true)
         }
     }
 
@@ -132,7 +164,7 @@ fun DouyinWebViewScreen(
      * lần tự chạy khi trang vừa tải xong thì im lặng nếu thất bại.
      */
     fun findNoWatermarkLink(announceFailure: Boolean) {
-        val videoId = extractDouyinVideoId(videoUrl)
+        val videoId = DouyinDirect.extractVideoId(videoUrl)
         if (videoId == null) {
             if (announceFailure) {
                 Toast.makeText(
@@ -146,7 +178,13 @@ fun DouyinWebViewScreen(
         if (lookingUp) return
         lookingUp = true
         scope.launch(Dispatchers.IO) {
-            val found = fetchNoWatermarkUrl(videoId)
+            val cookies = try {
+                CookieManager.getInstance().getCookie("https://www.douyin.com")
+            } catch (_: Exception) {
+                null
+            }
+            val html = DouyinDirect.fetchShareHtml(videoId, cookies)
+            val found = html?.let { DouyinDirect.extractPlayAddrUrl(it) }
             withContext(Dispatchers.Main) {
                 lookingUp = false
                 if (found != null) {
@@ -199,7 +237,7 @@ fun DouyinWebViewScreen(
                 .padding(padding),
         ) {
             Text(
-                "Đợi video hiện và chạy, app sẽ tự bắt link video và tìm bản không logo. " +
+                "App sẽ tự bắt link video, tìm bản không logo và tải luôn. " +
                     "Nếu trang hiện xác minh, hãy làm theo hướng dẫn trên trang.",
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
@@ -219,9 +257,13 @@ fun DouyinWebViewScreen(
                 ) {
                     items(capturedLinks, key = { it.url }) { captured ->
                         Row(verticalAlignment = Alignment.CenterVertically) {
+                            val parts = listOfNotNull(
+                                captured.label.takeIf { it.isNotEmpty() },
+                                captured.sizeLabel,
+                            )
                             Text(
-                                if (captured.label.isNotEmpty()) {
-                                    "${captured.label} · ${shortUrl(captured.url)}"
+                                if (parts.isNotEmpty()) {
+                                    "${parts.joinToString(" · ")} · ${shortUrl(captured.url)}"
                                 } else {
                                     shortUrl(captured.url)
                                 },
@@ -258,7 +300,7 @@ fun DouyinWebViewScreen(
                                     Toast.LENGTH_LONG,
                                 ).show()
                             } else {
-                                val clean = noWatermarkVariant(src)
+                                val clean = DouyinDirect.noWatermarkVariant(src)
                                 if (clean != null) {
                                     onVideoFound(clean, wv.title, true)
                                 } else {
@@ -298,7 +340,7 @@ fun DouyinWebViewScreen(
                                 val url = request.url.toString()
                                 if (isLikelyVideoUrl(url)) {
                                     view.post {
-                                        val clean = noWatermarkVariant(url)
+                                        val clean = DouyinDirect.noWatermarkVariant(url)
                                         if (clean != null) {
                                             // Link gốc có logo, bản đổi playwm->play thì không.
                                             addCaptured(clean, LABEL_NO_WATERMARK)
@@ -310,6 +352,16 @@ fun DouyinWebViewScreen(
                                         }
                                         notifyCaptured()
                                     }
+                                    return null
+                                }
+                                // Ảnh và quảng cáo/theo dõi: chặn cho trang nhẹ, trình
+                                // phát video không cần chúng để chạy.
+                                if (isBlockableResource(url)) {
+                                    return WebResourceResponse(
+                                        "text/plain",
+                                        "utf-8",
+                                        ByteArrayInputStream(ByteArray(0)),
+                                    )
                                 }
                                 // Trả null để request chạy bình thường.
                                 return null
@@ -317,6 +369,8 @@ fun DouyinWebViewScreen(
 
                             override fun onPageFinished(view: WebView, url: String) {
                                 super.onPageFinished(view, url)
+                                // Tự bấm play để video chạy và request video xuất hiện sớm.
+                                view.evaluateJavascript(AUTOPLAY_JS, null)
                                 // Trang vừa tải xong thì tự tìm bản không logo một lần.
                                 if (!triedAutoLookup) {
                                     triedAutoLookup = true
@@ -341,6 +395,21 @@ fun DouyinWebViewScreen(
 
 private const val LABEL_NO_WATERMARK = "Không logo"
 private const val LABEL_WATERMARK = "Có logo"
+
+/**
+ * Khóa gộp link trùng: cùng máy chủ + cùng đường dẫn thì là cùng 1 file,
+ * kể cả khi chữ ký trong query khác nhau; playwm và play gộp chung vì bản
+ * không logo được tạo ra từ chính link có logo đó.
+ */
+private fun captureKey(url: String): String {
+    return try {
+        val parsed = URL(url)
+        val path = parsed.path.replace("/playwm/", "/play/")
+        "${parsed.host}$path"
+    } catch (_: Exception) {
+        url
+    }
+}
 
 /** Link nào trông như file video trực tiếp thì bắt. */
 private fun isLikelyVideoUrl(url: String): Boolean {
@@ -371,108 +440,36 @@ private fun isLikelyVideoUrl(url: String): Boolean {
     return false
 }
 
-/**
- * Đổi link phát có logo (playwm) sang bản không logo (play).
- * Trả về null nếu link không chứa playwm.
- */
-private fun noWatermarkVariant(url: String): String? {
-    val rewritten = url.replace("/playwm/", "/play/")
-    return if (rewritten != url) rewritten else null
-}
-
-/** Lấy mã số video từ link /video/<id> hoặc /note/<id> của Douyin. */
-private fun extractDouyinVideoId(url: String): String? {
-    val matcher = Pattern.compile("/(?:video|note)/(\\d+)").matcher(url)
-    return if (matcher.find()) matcher.group(1) else null
-}
-
-/**
- * Tải trang share của video rồi đọc link phát không logo (play_addr) trong
- * dữ liệu nhúng của trang. Trả về null khi không lấy được.
- */
-private fun fetchNoWatermarkUrl(videoId: String): String? {
-    return try {
-        val shareUrl = "https://www.iesdouyin.com/share/video/$videoId/"
-        val connection = URL(shareUrl).openConnection() as HttpURLConnection
-        connection.instanceFollowRedirects = true
-        connection.connectTimeout = 15_000
-        connection.readTimeout = 30_000
-        connection.setRequestProperty("User-Agent", Downloader.CHROME_UA)
-        connection.setRequestProperty(
-            "Accept",
-            "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-        )
-        // Gửi kèm cookie trình duyệt trong app nếu có, để trang share khỏi chặn.
-        val cookies = CookieManager.getInstance().getCookie("https://www.douyin.com")
-        if (!cookies.isNullOrBlank()) {
-            connection.setRequestProperty("Cookie", cookies)
-        }
-        try {
-            if (connection.responseCode !in 200..299) return null
-            val html = connection.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-            extractPlayAddrUrl(html)
-        } finally {
-            connection.disconnect()
-        }
+/** Ảnh và quảng cáo/theo dõi thì chặn để trang tải nhanh hơn. */
+private fun isBlockableResource(url: String): Boolean {
+    val lower = url.lowercase()
+    if (lower.contains(".jpg") || lower.contains(".jpeg") ||
+        lower.contains(".png") || lower.contains(".webp") ||
+        lower.contains(".gif") || lower.contains(".svg") ||
+        lower.contains(".ico") || lower.contains(".avif") ||
+        lower.contains(".bmp")
+    ) {
+        return true
+    }
+    val host = try {
+        URL(url).host.lowercase()
     } catch (_: Exception) {
-        null
+        return false
     }
+    return AD_HOST_MARKERS.any { host.contains(it) }
 }
 
-/** Tìm link đầu tiên trong play_addr.url_list của dữ liệu nhúng trong trang. */
-private fun extractPlayAddrUrl(html: String): String? {
-    // Trang nhúng JSON đã escape (\/ và \uXXXX) nên gỡ escape trước rồi mới tìm.
-    val text = unescapeJsonText(html)
-    val matcher = Pattern.compile(
-        "\"play_addr\"\\s*:\\s*\\{[^}]*?\"url_list\"\\s*:\\s*\\[\\s*\"([^\"]+)\"",
-        Pattern.DOTALL,
-    ).matcher(text)
-    if (!matcher.find()) return null
-    val raw = matcher.group(1) ?: return null
-    if (raw.isBlank()) return null
-    return noWatermarkVariant(raw) ?: raw
-}
-
-/** Gỡ escape JSON (\/, \uXXXX, \\, \") trong một đoạn văn bản. */
-private fun unescapeJsonText(raw: String): String {
-    val out = StringBuilder(raw.length)
-    var i = 0
-    while (i < raw.length) {
-        val c = raw[i]
-        if (c == '\\' && i + 1 < raw.length) {
-            when (raw[i + 1]) {
-                '/' -> {
-                    out.append('/')
-                    i += 2
-                }
-                'u' -> {
-                    if (i + 5 < raw.length) {
-                        raw.substring(i + 2, i + 6).toIntOrNull(16)?.let { out.append(it.toChar()) }
-                        i += 6
-                    } else {
-                        i += 2
-                    }
-                }
-                '\\' -> {
-                    out.append('\\')
-                    i += 2
-                }
-                '"' -> {
-                    out.append('"')
-                    i += 2
-                }
-                else -> {
-                    out.append(raw[i + 1])
-                    i += 2
-                }
-            }
-        } else {
-            out.append(c)
-            i += 1
-        }
-    }
-    return out.toString()
-}
+private val AD_HOST_MARKERS = listOf(
+    "doubleclick",
+    "googlesyndication",
+    "adservice",
+    "adsystem",
+    "bytead",
+    "pangle",
+    "advertising",
+    "tracking",
+    "analytics",
+)
 
 private fun shortUrl(url: String): String {
     val host = try {
@@ -489,6 +486,18 @@ private const val EXTRACT_VIDEO_SRC_JS =
         "var s=v.currentSrc||v.src||'';" +
         "if(!s){var so=v.querySelector('source');if(so)s=so.src||'';}" +
         "return s;})()"
+
+/**
+ * Tự bấm play khi phần tử video xuất hiện (tắt tiếng trước để trình duyệt
+ * cho phép tự chạy), thăm dò tối đa 12 giây.
+ */
+private const val AUTOPLAY_JS =
+    "(function(){if(window.__vdmAutoplay)return;window.__vdmAutoplay=true;" +
+        "var n=0;var t=setInterval(function(){n++;" +
+        "var v=document.querySelector('video');" +
+        "if(v){try{v.muted=true;var p=v.play();if(p&&p.catch)p.catch(function(){});}" +
+        "catch(e){}clearInterval(t);}" +
+        "if(n>=24)clearInterval(t);},500);})()"
 
 /** evaluateJavascript trả về chuỗi JSON (có ngoặc kép, đã escape). */
 private fun parseJsStringResult(result: String?): String {
