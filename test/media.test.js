@@ -14,6 +14,12 @@ const { probeMedia, isVideoPage, FORMATS_MISSING } = require('../src/main/media/
 const { Components } = require('../src/main/media/components');
 
 const FAKE = path.join(__dirname, 'fixtures', 'fake-ytdlp.js');
+// The fixture is spawned directly (shebang), so it must be executable. Files
+// pushed through the GitHub API land in git without the +x bit, which made
+// every fixture-spawning test fail with EACCES on macOS/Linux.
+if (process.platform !== 'win32') {
+  try { fs.chmodSync(FAKE, 0o755); } catch { /* already executable */ }
+}
 const tools = { ready: () => true, ytdlpPath: FAKE, ffmpegPath: '/nonexistent/ffmpeg' };
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'vdm-media-'));
 test.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
@@ -27,13 +33,20 @@ function makeManager(overrides = {}) {
 }
 
 const settle = (dl) =>
-  new Promise((resolve) => {
+  new Promise((resolve, reject) => {
+    // A spawn failure that never settles used to hang the whole run until
+    // GitHub's 6h timeout. Fail fast with a clear message instead.
+    const timer = setTimeout(
+      () => reject(new Error('download did not settle within 60s')),
+      60_000,
+    );
+    const done = (value) => { clearTimeout(timer); resolve(value); };
     const check = () => !dl.running && ['completed', 'error', 'paused', 'canceled'].includes(dl.d.status);
-    if (check()) return resolve(dl);
+    if (check()) return done(dl);
     dl.on('stopped', function on() {
       if (check()) {
         dl.off('stopped', on);
-        resolve(dl);
+        done(dl);
       }
     });
   });
