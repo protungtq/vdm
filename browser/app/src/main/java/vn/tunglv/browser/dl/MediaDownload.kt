@@ -109,6 +109,33 @@ object MediaDownload {
     }
 
     /**
+     * Lỗi đúng dạng #15161 của yt-dlp: Facebook trả về trang mà bộ quét không
+     * đọc được khi request gửi kèm cookie (cần impersonation, Android không có).
+     */
+    private fun isFacebookParseError(e: Exception): Boolean {
+        val message = e.message ?: return false
+        return message.contains("[facebook]", ignoreCase = true) &&
+            message.contains("Cannot parse data", ignoreCase = true)
+    }
+
+    /**
+     * Lỗi Facebook đọc được cho người dùng, thay cho bản dump dài của yt-dlp.
+     * Lỗi khác thì giữ nguyên.
+     */
+    private fun facebookGuidance(e: Exception): Exception {
+        val message = e.message ?: ""
+        return if (message.contains("Cannot parse data", ignoreCase = true)) {
+            Exception(
+                "Không đọc được video Facebook này (Facebook đổi cách trả dữ liệu, " +
+                    "bộ quét chưa theo kịp). Hãy vào Cài đặt > Cập nhật bộ quét rồi thử lại; " +
+                    "nếu vẫn không được thì video này hiện chưa tải được.",
+            )
+        } else {
+            e
+        }
+    }
+
+    /**
      * Quét link, trả về tiêu đề + danh sách chất lượng có thể tải.
      * Link rút gọn được mở rộng trước; nếu bộ quét chính (yt-dlp) lỗi với link
      * TikTok thì tự thử nguồn dự phòng tikwm.
@@ -120,6 +147,18 @@ object MediaDownload {
                 fetchViaYtDlp(resolvedUrl, cookieFile)
             } catch (ytError: Exception) {
                 Log.w(TAG, "yt-dlp scan failed, trying fallback", ytError)
+                // Lỗi #15161: request gửi kèm cookie làm Facebook trả về dạng trang
+                // mà bộ quét không đọc được. Thử lại 1 lần không gửi cookie:
+                // video công khai thường đọc được bình thường.
+                if (isFacebookParseError(ytError) && cookieFile != null) {
+                    try {
+                        return@withContext fetchViaYtDlp(resolvedUrl, null)
+                    } catch (retryError: Exception) {
+                        Log.w(TAG, "facebook no-cookie retry failed", retryError)
+                        throw facebookGuidance(retryError)
+                    }
+                }
+                if (isFacebookParseError(ytError)) throw facebookGuidance(ytError)
                 if (!isTikTokUrl(resolvedUrl)) throw ytError
                 try {
                     fetchViaTikwm(resolvedUrl)
@@ -395,9 +434,34 @@ object MediaDownload {
             // Trả về response rỗng để giữ nguyên chữ ký hàm cho DownloadService.
             return@withContext YoutubeDLResponse(emptyList(), 0, 0L, "", "")
         }
+        try {
+            return@withContext downloadViaYtDlp(url, option, dir, cookieFile, onProgress)
+        } catch (e: Exception) {
+            // Lỗi #15161 (xem fetchInfo): thử lại 1 lần không gửi cookie.
+            if (isFacebookParseError(e) && cookieFile != null && !cancelRequested) {
+                Log.w(TAG, "facebook download failed with cookies, retrying without", e)
+                try {
+                    return@withContext downloadViaYtDlp(url, option, dir, null, onProgress)
+                } catch (retryError: Exception) {
+                    throw facebookGuidance(retryError)
+                }
+            }
+            if (isFacebookParseError(e)) throw facebookGuidance(e)
+            throw e
+        }
+    }
+
+    /** Tải qua yt-dlp: thử aria2 trước, lỗi do aria2 thì thử lại bằng trình tải thường. */
+    private fun downloadViaYtDlp(
+        url: String,
+        option: VideoFormatOption,
+        dir: File,
+        cookieFile: File?,
+        onProgress: (Float, Long) -> Unit,
+    ): YoutubeDLResponse {
         val request = buildYtDlpRequest(url, option, dir, cookieFile, useAria2 = true)
         try {
-            return@withContext executeRequest(request, onProgress)
+            return executeRequest(request, onProgress)
         } catch (ariaError: Exception) {
             // Chỉ thử lại khi lỗi đến từ trình tải phụ aria2 (vd exit code 16:
             // không tạo được file). Lỗi do link/video thì thử lại cũng vậy.
@@ -408,7 +472,7 @@ object MediaDownload {
             Log.w(TAG, "aria2 download failed, retrying with built-in downloader", ariaError)
             val fallback = buildYtDlpRequest(url, option, dir, cookieFile, useAria2 = false)
             try {
-                return@withContext executeRequest(fallback, onProgress)
+                return executeRequest(fallback, onProgress)
             } catch (fallbackError: Exception) {
                 throw Exception(
                     "Tải bằng trình tải phụ thất bại (${ariaError.message}); " +

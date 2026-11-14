@@ -37,15 +37,20 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.yausername.youtubedl_android.YoutubeDL
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import vn.tunglv.browser.BuildConfig
 import vn.tunglv.browser.data.BackupManager
 import vn.tunglv.browser.data.BookmarkStore
@@ -59,9 +64,12 @@ import vn.tunglv.browser.filter.FilterStore
 @Composable
 fun SettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val settings by SettingsStore.settings.collectAsState()
     val blockedCount by FilterStore.blockedCount.collectAsState()
     var backupMessage by remember { mutableStateOf("") }
+    var engineMessage by remember { mutableStateOf("") }
+    var updatingEngine by remember { mutableStateOf(false) }
     var confirmClearHistory by remember { mutableStateOf(false) }
     var confirmClearBookmarks by remember { mutableStateOf(false) }
 
@@ -236,6 +244,46 @@ fun SettingsScreen(onBack: () -> Unit) {
                     ).show()
                 },
             ) { Text("Xóa cookie") }
+
+            Spacer(Modifier.height(24.dp))
+            Text("Bộ máy tải", fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            OutlinedButton(
+                onClick = {
+                    updatingEngine = true
+                    engineMessage = ""
+                    scope.launch {
+                        try {
+                            val status = withContext(Dispatchers.IO) {
+                                YoutubeDL.getInstance().updateYoutubeDL(
+                                    context.applicationContext,
+                                    YoutubeDL.UpdateChannel.STABLE,
+                                )
+                            }
+                            engineMessage =
+                                if (status == YoutubeDL.UpdateStatus.ALREADY_UP_TO_DATE) {
+                                    "Bộ quét đã là bản mới nhất rồi."
+                                } else {
+                                    "Bộ quét đã lên bản mới nhất."
+                                }
+                        } catch (e: Exception) {
+                            engineMessage =
+                                "Cập nhật bộ quét thất bại: ${e.message ?: "lỗi không rõ"}"
+                        } finally {
+                            updatingEngine = false
+                        }
+                    }
+                },
+                enabled = !updatingEngine,
+            ) { Text(if (updatingEngine) "Đang cập nhật…" else "Cập nhật bộ quét") }
+            if (engineMessage.isNotBlank()) {
+                Spacer(Modifier.height(8.dp))
+                Text(engineMessage, style = MaterialTheme.typography.bodySmall)
+            }
+            Text(
+                "Bộ quét (yt-dlp) cần bản mới để theo kịp thay đổi của các trang video.",
+                style = MaterialTheme.typography.bodySmall,
+            )
 
             Spacer(Modifier.height(24.dp))
             Text("Giới thiệu", fontWeight = FontWeight.Bold)
