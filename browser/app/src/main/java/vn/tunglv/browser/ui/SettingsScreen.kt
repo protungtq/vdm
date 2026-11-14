@@ -32,6 +32,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -119,6 +120,9 @@ fun SettingsScreen(onBack: () -> Unit) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Quay lại")
                     }
                 },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                ),
             )
         },
     ) { innerPadding ->
@@ -130,7 +134,36 @@ fun SettingsScreen(onBack: () -> Unit) {
                 .verticalScroll(rememberScrollState()),
         ) {
             Spacer(Modifier.height(8.dp))
-            Text("Chặn quảng cáo", fontWeight = FontWeight.Bold)
+            SectionTitle("Giao diện")
+            Spacer(Modifier.height(4.dp))
+            Text(
+                "Chế độ sáng/tối của app.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Spacer(Modifier.height(4.dp))
+            for ((mode, label) in listOf(
+                "system" to "Theo hệ thống",
+                "light" to "Sáng",
+                "dark" to "Tối",
+            )) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { SettingsStore.update(themeMode = mode) }
+                        .padding(vertical = 6.dp),
+                ) {
+                    RadioButton(
+                        selected = settings.themeMode == mode,
+                        onClick = { SettingsStore.update(themeMode = mode) },
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(label)
+                }
+            }
+
+            Spacer(Modifier.height(24.dp))
+            SectionTitle("Chặn quảng cáo")
             Spacer(Modifier.height(8.dp))
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -168,7 +201,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             )
 
             Spacer(Modifier.height(24.dp))
-            Text("Tìm kiếm", fontWeight = FontWeight.Bold)
+            SectionTitle("Tìm kiếm")
             Spacer(Modifier.height(4.dp))
             Text(
                 "Công cụ tìm kiếm dùng khi gõ từ khóa ở thanh địa chỉ.",
@@ -195,7 +228,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
 
             Spacer(Modifier.height(24.dp))
-            Text("Sao lưu và khôi phục", fontWeight = FontWeight.Bold)
+            SectionTitle("Sao lưu và khôi phục")
             Spacer(Modifier.height(8.dp))
             Row {
                 Button(
@@ -221,7 +254,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             )
 
             Spacer(Modifier.height(24.dp))
-            Text("Dữ liệu", fontWeight = FontWeight.Bold)
+            SectionTitle("Dữ liệu")
             Spacer(Modifier.height(8.dp))
             Row {
                 OutlinedButton(onClick = { confirmClearHistory = true }) {
@@ -246,7 +279,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             ) { Text("Xóa cookie") }
 
             Spacer(Modifier.height(24.dp))
-            Text("Bộ máy tải", fontWeight = FontWeight.Bold)
+            SectionTitle("Bộ máy tải")
             Spacer(Modifier.height(8.dp))
             OutlinedButton(
                 onClick = {
@@ -286,7 +319,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             )
 
             Spacer(Modifier.height(24.dp))
-            Text("Giới thiệu", fontWeight = FontWeight.Bold)
+            SectionTitle("Giới thiệu")
             Spacer(Modifier.height(8.dp))
             Text("VN Browser ${BuildConfig.VERSION_NAME}")
             Text(
@@ -333,4 +366,15 @@ fun SettingsScreen(onBack: () -> Unit) {
             )
         }
     }
+}
+
+/** Tiêu đề một nhóm cài đặt: chữ đậm màu đỏ chủ đạo. */
+@Composable
+private fun SectionTitle(text: String) {
+    Text(
+        text,
+        style = MaterialTheme.typography.titleMedium,
+        fontWeight = FontWeight.Bold,
+        color = MaterialTheme.colorScheme.primary,
+    )
 }

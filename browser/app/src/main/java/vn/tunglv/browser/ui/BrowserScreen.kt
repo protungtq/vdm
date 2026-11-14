@@ -12,6 +12,7 @@ import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,18 +28,28 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.Button
@@ -46,13 +57,14 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -64,8 +76,10 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
@@ -84,8 +98,6 @@ import vn.tunglv.browser.web.HOME_URL
 import vn.tunglv.browser.web.TabManager
 import vn.tunglv.browser.web.TabSession
 import vn.tunglv.browser.web.resolveInput
-
-private val VnRed = Color(0xFFDC2626)
 
 private enum class AppScreen {
     BROWSER,
@@ -127,12 +139,7 @@ fun BrowserApp(viewModel: BrowserViewModel) {
         onDispose { tabManager.destroy() }
     }
 
-    MaterialTheme(
-        colorScheme = lightColorScheme(
-            primary = VnRed,
-            onPrimary = Color.White,
-        ),
-    ) {
+    VnBrowserTheme(themeMode = settings.themeMode) {
         when (screen) {
             AppScreen.TABS -> TabSwitcherScreen(
                 tabs = tabManager.tabs,
@@ -232,36 +239,59 @@ private fun BrowserMainScreen(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 // Android 15 vẽ tràn lên thanh trạng thái: chừa chỗ cho nó
                 // thì hàng công cụ mới không bị lố lên trên màn hình.
                 .statusBarsPadding()
-                .padding(horizontal = 4.dp, vertical = 4.dp),
+                .padding(horizontal = 8.dp, vertical = 6.dp),
         ) {
-            // Công tắc chặn quảng cáo + số request đã chặn.
-            IconButton(onClick = {
-                val next = !settings.adBlockEnabled
-                SettingsStore.update(adBlockEnabled = next)
-                Toast.makeText(
-                    context,
-                    if (next) "Đã bật chặn quảng cáo." else "Đã tắt chặn quảng cáo.",
-                    Toast.LENGTH_SHORT,
-                ).show()
-            }) {
-                Icon(
-                    Icons.Default.Shield,
-                    contentDescription = if (settings.adBlockEnabled) {
-                        "Đang chặn quảng cáo, bấm để tắt"
-                    } else {
-                        "Đã tắt chặn quảng cáo, bấm để bật"
-                    },
-                    tint = if (settings.adBlockEnabled) VnRed else Color.Gray,
-                )
+            // Chip chặn quảng cáo: khiên + số request đã chặn, bấm để bật/tắt.
+            Surface(
+                onClick = {
+                    val next = !settings.adBlockEnabled
+                    SettingsStore.update(adBlockEnabled = next)
+                    Toast.makeText(
+                        context,
+                        if (next) "Đã bật chặn quảng cáo." else "Đã tắt chặn quảng cáo.",
+                        Toast.LENGTH_SHORT,
+                    ).show()
+                },
+                shape = CircleShape,
+                color = if (settings.adBlockEnabled) {
+                    MaterialTheme.colorScheme.primaryContainer
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHigh
+                },
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                ) {
+                    Icon(
+                        Icons.Default.Shield,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = if (settings.adBlockEnabled) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        "$blockedCount",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (settings.adBlockEnabled) {
+                            MaterialTheme.colorScheme.onPrimaryContainer
+                        } else {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        },
+                    )
+                }
             }
-            Text(
-                "$blockedCount",
-                style = MaterialTheme.typography.bodySmall,
-            )
-            // Ô địa chỉ gọn (40dp): OutlinedTextField mặc định cao 56dp, đặt
+            Spacer(Modifier.width(6.dp))
+            // Ô địa chỉ dạng pill 44dp: OutlinedTextField mặc định cao 56dp, đặt
             // trong hàng công cụ trông lố và đẩy các nút khác lệch.
             BasicTextField(
                 value = addressText,
@@ -275,19 +305,25 @@ private fun BrowserMainScreen(
                 keyboardActions = KeyboardActions(onGo = { goTo(addressText) }),
                 modifier = Modifier
                     .weight(1f)
-                    .padding(horizontal = 4.dp)
                     .onFocusChanged { addressFocused = it.isFocused },
                 decorationBox = { innerTextField ->
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier
                             .background(
-                                MaterialTheme.colorScheme.surfaceVariant,
-                                RoundedCornerShape(20.dp),
+                                MaterialTheme.colorScheme.surfaceContainerHigh,
+                                RoundedCornerShape(22.dp),
                             )
-                            .height(40.dp)
+                            .height(44.dp)
                             .padding(horizontal = 12.dp),
                     ) {
+                        Icon(
+                            if (tabUrl.startsWith("https://")) Icons.Default.Lock else Icons.Default.Search,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.width(8.dp))
                         Box(Modifier.weight(1f)) {
                             if (addressText.isEmpty()) {
                                 Text(
@@ -298,37 +334,73 @@ private fun BrowserMainScreen(
                             }
                             innerTextField()
                         }
+                        if (addressFocused && addressText.isNotEmpty()) {
+                            IconButton(
+                                onClick = { addressText = "" },
+                                modifier = Modifier.size(28.dp),
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Xóa địa chỉ",
+                                    modifier = Modifier.size(18.dp),
+                                )
+                            }
+                        }
                     }
                 },
             )
+            Spacer(Modifier.width(6.dp))
             // Nút xem tab, hiện số tab đang mở.
-            IconButton(onClick = onOpenTabs) {
+            Surface(
+                onClick = onOpenTabs,
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                modifier = Modifier.size(40.dp),
+            ) {
                 Box(
-                    modifier = Modifier
-                        .size(28.dp)
-                        .border(2.dp, MaterialTheme.colorScheme.onSurface, RoundedCornerShape(6.dp)),
+                    modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
                     Text(
                         "${tabManager.tabs.size}",
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold,
                     )
                 }
             }
-            // Nút tải media của trang đang mở, đặt cạnh ô số tab.
-            IconButton(
-                onClick = {
-                    val cookies = try {
-                        CookieManager.getInstance().getCookie(tabUrl)
-                    } catch (_: Exception) {
-                        null
+            // Nút tải media của trang đang mở, kèm số link đã bắt được.
+            Box {
+                IconButton(
+                    onClick = {
+                        val cookies = try {
+                            CookieManager.getInstance().getCookie(tabUrl)
+                        } catch (_: Exception) {
+                            null
+                        }
+                        downloadSheet = tabUrl to cookies
+                    },
+                    enabled = tabUrl.startsWith("http://") || tabUrl.startsWith("https://"),
+                ) {
+                    Icon(Icons.Default.Download, contentDescription = "Tải media của trang này")
+                }
+                val captureCount = activeTab?.capturedMedia?.size ?: 0
+                if (captureCount > 0) {
+                    Surface(
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(top = 2.dp, end = 2.dp),
+                    ) {
+                        Text(
+                            "$captureCount",
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                        )
                     }
-                    downloadSheet = tabUrl to cookies
-                },
-                enabled = tabUrl.startsWith("http://") || tabUrl.startsWith("https://"),
-            ) {
-                Icon(Icons.Default.Download, contentDescription = "Tải media của trang này")
+                }
             }
             Box {
                 IconButton(onClick = { menuExpanded = true }) {
@@ -340,6 +412,7 @@ private fun BrowserMainScreen(
                 ) {
                     DropdownMenuItem(
                         text = { Text("Tab mới") },
+                        leadingIcon = { Icon(Icons.Default.Add, contentDescription = null) },
                         onClick = {
                             menuExpanded = false
                             tabManager.createTab(HOME_URL, activate = true)
@@ -347,6 +420,7 @@ private fun BrowserMainScreen(
                     )
                     DropdownMenuItem(
                         text = { Text("Lịch sử") },
+                        leadingIcon = { Icon(Icons.Default.History, contentDescription = null) },
                         onClick = {
                             menuExpanded = false
                             onOpenHistory()
@@ -354,6 +428,7 @@ private fun BrowserMainScreen(
                     )
                     DropdownMenuItem(
                         text = { Text("Dấu trang") },
+                        leadingIcon = { Icon(Icons.Default.Star, contentDescription = null) },
                         onClick = {
                             menuExpanded = false
                             onOpenBookmarks()
@@ -361,6 +436,7 @@ private fun BrowserMainScreen(
                     )
                     DropdownMenuItem(
                         text = { Text("Cài đặt") },
+                        leadingIcon = { Icon(Icons.Default.Settings, contentDescription = null) },
                         onClick = {
                             menuExpanded = false
                             onOpenSettings()
@@ -368,6 +444,7 @@ private fun BrowserMainScreen(
                     )
                     DropdownMenuItem(
                         text = { Text("Sao chép link") },
+                        leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
                         onClick = {
                             menuExpanded = false
                             if (tabUrl.isNotBlank()) {
@@ -380,6 +457,7 @@ private fun BrowserMainScreen(
                     )
                     DropdownMenuItem(
                         text = { Text("Chia sẻ link") },
+                        leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) },
                         onClick = {
                             menuExpanded = false
                             if (tabUrl.isNotBlank()) {
@@ -393,6 +471,7 @@ private fun BrowserMainScreen(
                     )
                     DropdownMenuItem(
                         text = { Text("Mở bằng app khác") },
+                        leadingIcon = { Icon(Icons.Default.OpenInNew, contentDescription = null) },
                         onClick = {
                             menuExpanded = false
                             if (tabUrl.isNotBlank()) {
@@ -417,8 +496,11 @@ private fun BrowserMainScreen(
             LinearProgressIndicator(
                 progress = { tabProgress / 100f },
                 modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = Color.Transparent,
             )
         }
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         if (activeTab == null) {
             Box(
                 modifier = Modifier
@@ -453,50 +535,68 @@ private fun BrowserMainScreen(
                 modifier = Modifier.weight(1f),
             )
         }
-        // Thanh dưới: điều hướng, trang chủ, dấu trang.
-        Row(
+        // Thanh dưới: nền riêng + nhãn dưới mỗi nút để nhìn là biết nút gì.
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .navigationBarsPadding()
-                .padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                .navigationBarsPadding(),
         ) {
-            IconButton(
-                onClick = { activeTab?.let { tabManager.goBack(it) } },
-                enabled = tabCanGoBack,
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Default.ArrowBack, contentDescription = "Quay lại")
-            }
-            IconButton(
-                onClick = { activeTab?.let { tabManager.goForward(it) } },
-                enabled = tabCanGoForward,
-            ) {
-                Icon(Icons.Default.ArrowForward, contentDescription = "Tiến tới")
-            }
-            IconButton(onClick = { activeTab?.let { tabManager.openStartPage(it) } }) {
-                Icon(Icons.Default.Home, contentDescription = "Trang chủ")
-            }
-            IconButton(onClick = { activeTab?.let { tabManager.reload(it) } }) {
-                Icon(Icons.Default.Refresh, contentDescription = "Tải lại")
-            }
-            val bookmarked = tabUrl.isNotBlank() && bookmarks.any { it.url == tabUrl }
-            IconButton(
-                onClick = {
-                    if (tabUrl.isBlank()) return@IconButton
-                    val nowMarked = BookmarkStore.toggle(tabUrl, tabTitle)
-                    Toast.makeText(
-                        context,
-                        if (nowMarked) "Đã thêm dấu trang." else "Đã gỡ dấu trang.",
-                        Toast.LENGTH_SHORT,
-                    ).show()
-                },
-                enabled = tabUrl.isNotBlank(),
-            ) {
-                Icon(
-                    Icons.Default.Star,
-                    contentDescription = if (bookmarked) "Đã gắn dấu trang" else "Gắn dấu trang",
-                    tint = if (bookmarked) VnRed else Color.Gray,
+                BottomBarButton(
+                    icon = Icons.Default.ArrowBack,
+                    label = "Quay lại",
+                    enabled = tabCanGoBack,
+                    active = false,
+                    onClick = { activeTab?.let { tabManager.goBack(it) } },
+                    modifier = Modifier.weight(1f),
+                )
+                BottomBarButton(
+                    icon = Icons.Default.ArrowForward,
+                    label = "Tiến tới",
+                    enabled = tabCanGoForward,
+                    active = false,
+                    onClick = { activeTab?.let { tabManager.goForward(it) } },
+                    modifier = Modifier.weight(1f),
+                )
+                BottomBarButton(
+                    icon = Icons.Default.Home,
+                    label = "Trang chủ",
+                    enabled = true,
+                    active = tabIsStartPage,
+                    onClick = { activeTab?.let { tabManager.openStartPage(it) } },
+                    modifier = Modifier.weight(1f),
+                )
+                BottomBarButton(
+                    icon = Icons.Default.Refresh,
+                    label = "Tải lại",
+                    enabled = true,
+                    active = false,
+                    onClick = { activeTab?.let { tabManager.reload(it) } },
+                    modifier = Modifier.weight(1f),
+                )
+                val bookmarked = tabUrl.isNotBlank() && bookmarks.any { it.url == tabUrl }
+                BottomBarButton(
+                    icon = Icons.Default.Star,
+                    label = "Dấu trang",
+                    enabled = tabUrl.isNotBlank(),
+                    active = bookmarked,
+                    onClick = {
+                        if (tabUrl.isBlank()) return@BottomBarButton
+                        val nowMarked = BookmarkStore.toggle(tabUrl, tabTitle)
+                        Toast.makeText(
+                            context,
+                            if (nowMarked) "Đã thêm dấu trang." else "Đã gỡ dấu trang.",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    },
+                    modifier = Modifier.weight(1f),
                 )
             }
         }
@@ -510,6 +610,34 @@ private fun BrowserMainScreen(
             pageTitle = tabTitle,
             onClose = { downloadSheet = null },
         )
+    }
+}
+
+/** Một nút ở thanh dưới: icon + nhãn nhỏ bên dưới, nút đang bật thì đỏ. */
+@Composable
+private fun BottomBarButton(
+    icon: ImageVector,
+    label: String,
+    enabled: Boolean,
+    active: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val tint = when {
+        !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+        active -> MaterialTheme.colorScheme.primary
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(vertical = 6.dp),
+    ) {
+        Icon(icon, contentDescription = label, tint = tint, modifier = Modifier.size(22.dp))
+        Spacer(Modifier.height(2.dp))
+        Text(label, style = MaterialTheme.typography.labelSmall, color = tint)
     }
 }
 

@@ -496,33 +496,48 @@ private const val START_PAGE_HTML = """
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>VN Browser</title>
 <style>
-body{font-family:sans-serif;background:#fafafa;color:#222;margin:0;padding:24px 16px}
-h1{color:#DC2626;font-size:26px;margin:0 0 4px}
-p{color:#666;font-size:14px;margin:0 0 20px}
-form{display:flex;gap:8px;margin:0 0 20px}
-input{flex:1;padding:12px;border:1px solid #ddd;border-radius:12px;font-size:15px}
-button{padding:12px 16px;border:0;border-radius:12px;background:#DC2626;color:#fff;
+*{box-sizing:border-box}
+body{font-family:sans-serif;background:#fafaf8;color:#1c1b1a;margin:0;padding:28px 20px 32px}
+.head{display:flex;align-items:center;gap:12px;margin:0 0 6px}
+.logo{width:48px;height:48px;border-radius:16px;background:#DC2626;color:#fff;
+  display:flex;align-items:center;justify-content:center;font-size:28px;font-weight:800}
+h1{color:#DC2626;font-size:26px;margin:0;line-height:1.1}
+p{color:#6b6660;font-size:14px;margin:0 0 22px}
+form{display:flex;gap:8px;margin:0 0 24px}
+input{flex:1;min-width:0;padding:13px 18px;border:1px solid #e5e1dc;border-radius:999px;
+  font-size:15px;background:#fff;color:#1c1b1a;outline:none;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+input:focus{border-color:#DC2626}
+button{padding:13px 20px;border:0;border-radius:999px;background:#DC2626;color:#fff;
   font-size:15px;font-weight:700}
-.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-a{display:block;background:#fff;border:1px solid #e5e5e5;border-radius:12px;
-  padding:16px 12px;text-align:center;text-decoration:none;color:#222;
-  font-weight:700;font-size:15px}
-a span{display:block;font-weight:400;font-size:12px;color:#888;margin-top:4px}
+.grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px 8px}
+a{display:flex;flex-direction:column;align-items:center;gap:8px;text-decoration:none;
+  color:#1c1b1a;font-weight:600;font-size:13px;text-align:center}
+a i{width:56px;height:56px;border-radius:18px;display:flex;align-items:center;
+  justify-content:center;font-style:normal;font-size:24px;font-weight:800;color:#fff}
+.g{background:#4285F4}.y{background:#FF0000}.f{background:#1877F2}.t{background:#111}
+.d{background:#FE2C55}.x{background:#000}.r{background:#FF4500}.v{background:#17B3E8}
+@media (prefers-color-scheme:dark){
+body{background:#131211;color:#f5f2ef}
+p{color:#a8a29b}
+input{background:#262421;border-color:#38342f;color:#f5f2ef}
+a{color:#f5f2ef}
+.t,.x{background:#333}
+}
 </style></head><body>
-<h1>VN Browser</h1>
+<div class="head"><div class="logo">V</div><h1>VN Browser</h1></div>
 <p>Đã bật chặn quảng cáo. Gõ từ khóa để tìm, hoặc mở nhanh một trang dưới đây.</p>
 <form action="https://www.google.com/search" method="get">
 <input type="search" name="q" placeholder="Tìm kiếm…">
 <button type="submit">Tìm</button>
 </form>
 <div class="grid">
-<a href="https://www.google.com">Google<span>Tìm kiếm</span></a>
-<a href="https://m.youtube.com">YouTube<span>Video</span></a>
-<a href="https://m.facebook.com">Facebook<span>Mạng xã hội</span></a>
-<a href="https://www.tiktok.com">TikTok<span>Video ngắn</span></a>
-<a href="https://www.douyin.com">Douyin<span>Video ngắn</span></a>
-<a href="https://x.com">X<span>Mạng xã hội</span></a>
-<a href="https://www.reddit.com">Reddit<span>Cộng đồng</span></a>
-<a href="https://vimeo.com">Vimeo<span>Video</span></a>
+<a href="https://www.google.com"><i class="g">G</i>Google</a>
+<a href="https://m.youtube.com"><i class="y">▶</i>YouTube</a>
+<a href="https://m.facebook.com"><i class="f">f</i>Facebook</a>
+<a href="https://www.tiktok.com"><i class="t">♪</i>TikTok</a>
+<a href="https://www.douyin.com"><i class="d">♪</i>Douyin</a>
+<a href="https://x.com"><i class="x">𝕏</i>X</a>
+<a href="https://www.reddit.com"><i class="r">R</i>Reddit</a>
+<a href="https://vimeo.com"><i class="v">V</i>Vimeo</a>
 </div></body></html>
 """

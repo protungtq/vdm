@@ -60,6 +60,8 @@ fun searchEngineById(id: String): SearchEngine {
 data class BrowserSettings(
     val adBlockEnabled: Boolean = true,
     val searchEngineId: String = "google",
+    /** Giao diện: "system" theo máy, "light" sáng, "dark" tối. */
+    val themeMode: String = "system",
 )
 
 private const val MAX_HISTORY_ENTRIES = 500
@@ -298,6 +300,7 @@ object SettingsStore {
     private const val PREFS_NAME = "vn_browser_settings"
     private const val KEY_AD_BLOCK = "ad_block_enabled"
     private const val KEY_SEARCH_ENGINE = "search_engine_id"
+    private const val KEY_THEME_MODE = "theme_mode"
 
     private val _settings = MutableStateFlow(BrowserSettings())
     val settings: StateFlow<BrowserSettings> = _settings.asStateFlow()
@@ -310,15 +313,21 @@ object SettingsStore {
         val loaded = BrowserSettings(
             adBlockEnabled = prefs.getBoolean(KEY_AD_BLOCK, true),
             searchEngineId = prefs.getString(KEY_SEARCH_ENGINE, "google") ?: "google",
+            themeMode = prefs.getString(KEY_THEME_MODE, "system") ?: "system",
         )
         _settings.value = loaded
         FilterStore.adBlockingEnabled = loaded.adBlockEnabled
     }
 
-    fun update(adBlockEnabled: Boolean? = null, searchEngineId: String? = null) {
+    fun update(
+        adBlockEnabled: Boolean? = null,
+        searchEngineId: String? = null,
+        themeMode: String? = null,
+    ) {
         val next = _settings.value.copy(
             adBlockEnabled = adBlockEnabled ?: _settings.value.adBlockEnabled,
             searchEngineId = searchEngineId ?: _settings.value.searchEngineId,
+            themeMode = themeMode ?: _settings.value.themeMode,
         )
         _settings.value = next
         FilterStore.adBlockingEnabled = next.adBlockEnabled
@@ -326,6 +335,7 @@ object SettingsStore {
             .edit()
             .putBoolean(KEY_AD_BLOCK, next.adBlockEnabled)
             .putString(KEY_SEARCH_ENGINE, next.searchEngineId)
+            .putString(KEY_THEME_MODE, next.themeMode)
             .apply()
     }
 
@@ -415,7 +425,8 @@ object BackupManager {
             "settings",
             JSONObject()
                 .put("adBlockEnabled", settings.adBlockEnabled)
-                .put("searchEngineId", settings.searchEngineId),
+                .put("searchEngineId", settings.searchEngineId)
+                .put("themeMode", settings.themeMode),
         )
         val marks = JSONArray()
         for (mark in BookmarkStore.snapshot()) {
@@ -465,6 +476,7 @@ object BackupManager {
                 SettingsStore.update(
                     adBlockEnabled = settingsJson.optBoolean("adBlockEnabled", true),
                     searchEngineId = settingsJson.optString("searchEngineId", "google"),
+                    themeMode = settingsJson.optString("themeMode", "system"),
                 )
                 settingsApplied = true
             }
