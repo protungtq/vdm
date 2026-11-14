@@ -33,7 +33,9 @@ class DownloadService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val url = intent?.getStringExtra(EXTRA_URL) ?: return START_NOT_STICKY
-        val formatSpec = intent.getStringExtra(EXTRA_FORMAT_SPEC) ?: return START_NOT_STICKY
+        val capturedUrl = intent.getStringExtra(EXTRA_CAPTURED_URL)
+        val formatSpec = intent.getStringExtra(EXTRA_FORMAT_SPEC)
+        if (capturedUrl == null && formatSpec == null) return START_NOT_STICKY
         val label = intent.getStringExtra(EXTRA_LABEL) ?: ""
         val isAudio = intent.getBooleanExtra(EXTRA_IS_AUDIO, false)
         val directUrl = intent.getStringExtra(EXTRA_DIRECT_URL)
@@ -54,11 +56,25 @@ class DownloadService : Service() {
 
         scope.launch {
             try {
-                val option = VideoFormatOption(formatSpec, label, null, isAudio, directUrl)
-                val cookieFile = MediaDownload.writeCookieFile(this@DownloadService, url, cookies)
-                MediaDownload.download(url, option, cookieFile) { progress, eta ->
-                    DownloadState.update(progress, eta)
-                    maybeUpdateNotification(title, progress)
+                if (capturedUrl != null) {
+                    val audioUrl = intent.getStringExtra(EXTRA_CAPTURED_AUDIO_URL)
+                    MediaDownload.downloadCaptured(
+                        this@DownloadService,
+                        capturedUrl,
+                        audioUrl,
+                        title,
+                        url,
+                    ) { progress, eta ->
+                        DownloadState.update(progress, eta)
+                        maybeUpdateNotification(title, progress)
+                    }
+                } else {
+                    val option = VideoFormatOption(formatSpec!!, label, null, isAudio, directUrl)
+                    val cookieFile = MediaDownload.writeCookieFile(this@DownloadService, url, cookies)
+                    MediaDownload.download(url, option, cookieFile) { progress, eta ->
+                        DownloadState.update(progress, eta)
+                        maybeUpdateNotification(title, progress)
+                    }
                 }
                 val done = "Đã tải xong: $title"
                 DownloadState.finished(done)
@@ -138,6 +154,8 @@ class DownloadService : Service() {
         const val EXTRA_DIRECT_URL = "extra_direct_url"
         const val EXTRA_COOKIES = "extra_cookies"
         const val EXTRA_TITLE = "extra_title"
+        const val EXTRA_CAPTURED_URL = "extra_captured_url"
+        const val EXTRA_CAPTURED_AUDIO_URL = "extra_captured_audio_url"
 
         fun start(
             context: Context,
@@ -153,6 +171,27 @@ class DownloadService : Service() {
                 putExtra(EXTRA_IS_AUDIO, option.isAudioOnly)
                 putExtra(EXTRA_DIRECT_URL, option.directUrl)
                 putExtra(EXTRA_COOKIES, cookies)
+                putExtra(EXTRA_TITLE, title)
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                context.startForegroundService(intent)
+            } else {
+                context.startService(intent)
+            }
+        }
+
+        /** Tải link media bắt được từ trang, kèm link tiếng để gộp nếu có. */
+        fun startCaptured(
+            context: Context,
+            pageUrl: String,
+            videoUrl: String,
+            audioUrl: String?,
+            title: String,
+        ) {
+            val intent = Intent(context, DownloadService::class.java).apply {
+                putExtra(EXTRA_URL, pageUrl)
+                putExtra(EXTRA_CAPTURED_URL, videoUrl)
+                putExtra(EXTRA_CAPTURED_AUDIO_URL, audioUrl)
                 putExtra(EXTRA_TITLE, title)
             }
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

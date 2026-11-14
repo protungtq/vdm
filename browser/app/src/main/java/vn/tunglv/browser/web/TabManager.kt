@@ -55,6 +55,16 @@ class TabSession(
     val canGoForward = mutableStateOf(false)
     val isStartPage = mutableStateOf(startUrl == HOME_URL)
 
+    /** Link media bắt được từ request mạng của trang đang mở. */
+    val capturedMedia = mutableStateListOf<CapturedMedia>()
+
+    /** Thêm link bắt được, trùng luồng thì chỉ giữ link đầu tiên. */
+    fun addCapture(media: CapturedMedia) {
+        if (capturedMedia.any { captureKey(it) == captureKey(media) }) return
+        if (capturedMedia.size >= 20) return
+        capturedMedia.add(media)
+    }
+
     internal var webView: WebView? = null
     internal var loaded = false
 }
@@ -298,6 +308,14 @@ class TabManager(
                 if (!request.isForMainFrame && isAdHost(url)) {
                     return emptyResponse()
                 }
+                // Bắt link media để nút tải dùng khi bộ quét không đọc được
+                // trang (vd YouTube). Chỉ bắt request phụ, không bắt frame chính.
+                if (!request.isForMainFrame) {
+                    val captured = classifyMediaUrl(url)
+                    if (captured != null) {
+                        view.post { session.addCapture(captured) }
+                    }
+                }
                 return null
             }
 
@@ -315,6 +333,8 @@ class TabManager(
                 } else {
                     session.isStartPage.value = false
                     session.url.value = url
+                    // Trang mới thì bỏ link media của trang cũ.
+                    session.capturedMedia.clear()
                 }
             }
 
@@ -339,6 +359,20 @@ class TabManager(
                 super.doUpdateVisitedHistory(view, url, isReload)
                 session.canGoBack.value = view.canGoBack()
                 session.canGoForward.value = view.canGoForward()
+                // Trang tự đổi địa chỉ không tải lại (vd lướt Shorts): cập nhật
+                // địa chỉ tab và bỏ link media của trang cũ.
+                if (url != null &&
+                    (url.startsWith("http://") || url.startsWith("https://"))
+                ) {
+                    val clean = url.substringBefore("#")
+                    if (clean != session.url.value.substringBefore("#") &&
+                        !session.isStartPage.value
+                    ) {
+                        session.capturedMedia.clear()
+                    }
+                    session.url.value = url
+                    session.isStartPage.value = false
+                }
             }
         }
         webView.webChromeClient = object : WebChromeClient() {

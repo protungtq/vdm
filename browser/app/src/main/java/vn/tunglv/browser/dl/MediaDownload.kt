@@ -1,6 +1,10 @@
 package vn.tunglv.browser.dl
 
 import android.content.Context
+import android.media.MediaCodec
+import android.media.MediaExtractor
+import android.media.MediaFormat
+import android.media.MediaMuxer
 import android.os.Environment
 import android.util.Log
 import com.yausername.youtubedl_android.YoutubeDL
@@ -14,6 +18,7 @@ import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
+import java.nio.ByteBuffer
 import java.util.regex.Pattern
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -147,6 +152,16 @@ object MediaDownload {
                 fetchViaYtDlp(resolvedUrl, cookieFile)
             } catch (ytError: Exception) {
                 Log.w(TAG, "yt-dlp scan failed, trying fallback", ytError)
+                // YouTube chặn bộ quét trên điện thoại (cần xác minh trình duyệt
+                // mà yt-dlp trên Android không có): hướng sang đường bắt link
+                // phát trực tiếp trong trình duyệt.
+                if (isYouTubeUrl(resolvedUrl)) {
+                    throw Exception(
+                        "YouTube không cho bộ quét lấy link trực tiếp. Hãy bấm phát " +
+                            "video trong trang rồi mở lại bảng này, app sẽ bắt link " +
+                            "phát của video để tải.",
+                    )
+                }
                 // Lỗi #15161: request gửi kèm cookie làm Facebook trả về dạng trang
                 // mà bộ quét không đọc được. Thử lại 1 lần không gửi cookie:
                 // video công khai thường đọc được bình thường.
@@ -194,6 +209,16 @@ object MediaDownload {
             URL(url).host.lowercase().endsWith("tiktok.com")
         } catch (_: Exception) {
             url.lowercase().contains("tiktok.com")
+        }
+    }
+
+    private fun isYouTubeUrl(url: String): Boolean {
+        return try {
+            val host = URL(url).host.lowercase()
+            host.endsWith("youtube.com") || host == "youtu.be"
+        } catch (_: Exception) {
+            val lower = url.lowercase()
+            lower.contains("youtube.com") || lower.contains("youtu.be")
         }
     }
 
@@ -573,6 +598,200 @@ object MediaDownload {
             connection.disconnect()
         }
         onProgress(100f, 0L)
+    }
+
+    /**
+     * Tải 1 link media bắt được từ trang. [audioUrl] != null thì tải cả 2
+     * luồng rồi gộp hình + tiếng thành 1 file mp4. Trả về file đã tải.
+     */
+    suspend fun downloadCaptured(
+        context: Context,
+        videoUrl: String,
+        audioUrl: String?,
+        title: String,
+        referer: String?,
+        onProgress: (Float, Long) -> Unit,
+    ): File = withContext(Dispatchers.IO) {
+        cancelRequested = false
+        val dir = downloadDir()
+        if (!dir.exists()) dir.mkdirs()
+        if (!dir.exists() || !dir.canWrite()) {
+            throw Exception(
+                "Không ghi được vào thư mục Download/VN Browser. " +
+                    "Hãy cấp quyền truy cập mọi file cho app rồi thử lại.",
+            )
+        }
+        val baseName = sanitizeFileName(title)
+        if (audioUrl == null) {
+            val outFile = uniqueFile(dir, baseName, "mp4")
+            streamToFile(videoUrl, referer, outFile, 0f, 100f, onProgress)
+            onProgress(100f, 0L)
+            return@withContext outFile
+        }
+        val tmpDir = File(context.cacheDir, "vnbrowser-merge").apply { mkdirs() }
+        val videoFile = File(tmpDir, "video.mp4")
+        val audioFile = File(tmpDir, "audio.m4a")
+        val outFile = uniqueFile(dir, baseName, "mp4")
+        try {
+            streamToFile(videoUrl, referer, videoFile, 0f, 45f, onProgress)
+            streamToFile(audioUrl, referer, audioFile, 45f, 85f, onProgress)
+            onProgress(90f, 0L)
+            mergeVideoAudio(videoFile, audioFile, outFile)
+        } finally {
+            videoFile.delete()
+            audioFile.delete()
+        }
+        onProgress(100f, 0L)
+        outFile
+    }
+
+    /**
+     * Tải thẳng 1 URL về [outFile], báo tiến trình trong khoảng
+     * [progressFrom]..[progressTo]. Ném Exception khi lỗi hoặc bị hủy.
+     */
+    private fun streamToFile(
+        fileUrl: String,
+        referer: String?,
+        outFile: File,
+        progressFrom: Float,
+        progressTo: Float,
+        onProgress: (Float, Long) -> Unit,
+    ) {
+        val connection = URL(fileUrl).openConnection() as HttpURLConnection
+        connection.connectTimeout = 15_000
+        connection.readTimeout = 60_000
+        connection.setRequestProperty("User-Agent", CHROME_UA)
+        if (!referer.isNullOrBlank()) connection.setRequestProperty("Referer", referer)
+        try {
+            val code = connection.responseCode
+            if (code == 403) {
+                throw Exception(
+                    "Link phát đã hết hạn, hãy tải lại trang và bấm phát " +
+                        "video rồi thử lại.",
+                )
+            }
+            if (code !in 200..299) throw Exception("Máy chủ trả về HTTP $code")
+            val total = connection.contentLengthLong.takeIf { it > 0 }
+            val input = BufferedInputStream(connection.inputStream)
+            var read = 0L
+            val buffer = ByteArray(262_144)
+            FileOutputStream(outFile).use { output ->
+                while (true) {
+                    if (cancelRequested) {
+                        output.close()
+                        outFile.delete()
+                        throw Exception("Đã hủy tải.")
+                    }
+                    val n = input.read(buffer)
+                    if (n < 0) break
+                    output.write(buffer, 0, n)
+                    read += n
+                    if (total != null) {
+                        onProgress(
+                            progressFrom + (progressTo - progressFrom) * read / total,
+                            0L,
+                        )
+                    }
+                }
+            }
+            input.close()
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    /**
+     * Gộp file video (không tiếng) và file âm thanh thành 1 file mp4 bằng
+     * MediaMuxer của Android, không mã hóa lại nên rất nhanh.
+     */
+    private fun mergeVideoAudio(videoFile: File, audioFile: File, outFile: File) {
+        val videoExtractor = MediaExtractor()
+        val audioExtractor = MediaExtractor()
+        val muxer = MediaMuxer(
+            outFile.absolutePath,
+            MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4,
+        )
+        try {
+            videoExtractor.setDataSource(videoFile.absolutePath)
+            audioExtractor.setDataSource(audioFile.absolutePath)
+            val videoIndex = selectTrack(videoExtractor, "video/")
+            val audioIndex = selectTrack(audioExtractor, "audio/")
+            if (videoIndex < 0) throw Exception("Không đọc được hình ảnh từ link video.")
+            if (audioIndex < 0) throw Exception("Không đọc được tiếng từ link âm thanh.")
+            val videoTrack = muxer.addTrack(videoExtractor.getTrackFormat(videoIndex))
+            val audioTrack = muxer.addTrack(audioExtractor.getTrackFormat(audioIndex))
+            muxer.start()
+            writeTrack(videoExtractor, videoIndex, muxer, videoTrack)
+            writeTrack(audioExtractor, audioIndex, muxer, audioTrack)
+        } catch (e: Exception) {
+            outFile.delete()
+            throw if (e.message?.startsWith("Không đọc được") == true) {
+                e
+            } else {
+                Exception(
+                    "Không gộp được tiếng vào video " +
+                        "(${e.message ?: "lỗi không rõ"}). Hãy thử chọn chất lượng khác.",
+                )
+            }
+        } finally {
+            try {
+                muxer.stop()
+            } catch (_: Exception) {
+                // Chưa start mà stop thì lỗi, bỏ qua.
+            }
+            muxer.release()
+            videoExtractor.release()
+            audioExtractor.release()
+        }
+    }
+
+    private fun selectTrack(extractor: MediaExtractor, mimePrefix: String): Int {
+        for (i in 0 until extractor.trackCount) {
+            val mime = extractor.getTrackFormat(i).getString(MediaFormat.KEY_MIME) ?: ""
+            if (mime.startsWith(mimePrefix)) return i
+        }
+        return -1
+    }
+
+    private fun writeTrack(
+        extractor: MediaExtractor,
+        trackIndex: Int,
+        muxer: MediaMuxer,
+        muxerTrack: Int,
+    ) {
+        extractor.selectTrack(trackIndex)
+        val buffer = ByteBuffer.allocate(1024 * 1024)
+        val info = MediaCodec.BufferInfo()
+        var firstTimeUs = -1L
+        while (true) {
+            val size = extractor.readSampleData(buffer, 0)
+            if (size < 0) break
+            val timeUs = extractor.sampleTime
+            if (firstTimeUs < 0) firstTimeUs = timeUs
+            // Dời mốc thời gian mỗi luồng về 0 để hình và tiếng khớp nhau.
+            info.set(0, size, maxOf(0L, timeUs - firstTimeUs), extractor.sampleFlags)
+            muxer.writeSampleData(muxerTrack, buffer, info)
+            extractor.advance()
+        }
+    }
+
+    /** Tên file an toàn từ tiêu đề trang, cắt còn tối đa 60 ký tự. */
+    private fun sanitizeFileName(title: String): String {
+        val clean = title.replace(Regex("[\\\\/:*?\"<>|]"), " ").trim()
+            .replace(Regex("\\s+"), " ")
+        val cut = clean.take(60).trim().trimEnd('.', ' ')
+        return cut.ifBlank { "video" }
+    }
+
+    /** File chưa trùng tên trong thư mục (thêm (1), (2)... khi cần). */
+    private fun uniqueFile(dir: File, baseName: String, ext: String): File {
+        var candidate = File(dir, "$baseName.$ext")
+        var n = 1
+        while (candidate.exists()) {
+            n++
+            candidate = File(dir, "$baseName ($n).$ext")
+        }
+        return candidate
     }
 
     /** Hủy lượt tải đang chạy (nếu có). */

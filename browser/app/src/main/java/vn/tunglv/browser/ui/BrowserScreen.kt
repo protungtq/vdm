@@ -502,9 +502,12 @@ private fun BrowserMainScreen(
         }
     }
     downloadSheet?.let { (sheetUrl, sheetCookies) ->
+        val tabCaptures = activeTab?.capturedMedia?.toList().orEmpty()
         DownloadSheet(
             pageUrl = sheetUrl,
             cookieString = sheetCookies,
+            captures = tabCaptures,
+            pageTitle = tabTitle,
             onClose = { downloadSheet = null },
         )
     }
