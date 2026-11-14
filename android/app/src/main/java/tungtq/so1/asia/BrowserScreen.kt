@@ -121,15 +121,22 @@ fun BrowserScreen(
         capturedLinks.add(CapturedMedia(url, label))
         // Đo dung lượng để hiện cạnh link, giúp chọn dễ hơn.
         scope.launch(Dispatchers.IO) {
-            val size = DouyinDirect.probeContentLength(url, currentUrl.takeIf { it.isNotBlank() })
-            val sizeLabel = DouyinDirect.formatBytes(size)
-            if (sizeLabel != null) {
-                withContext(Dispatchers.Main) {
-                    val idx = capturedLinks.indexOfFirst { it.url == url }
-                    if (idx >= 0) {
-                        capturedLinks[idx] = capturedLinks[idx].copy(sizeLabel = sizeLabel)
+            try {
+                val size = DouyinDirect.probeContentLength(
+                    url,
+                    currentUrl.takeIf { it.isNotBlank() },
+                )
+                val sizeLabel = DouyinDirect.formatBytes(size)
+                if (sizeLabel != null) {
+                    withContext(Dispatchers.Main) {
+                        val idx = capturedLinks.indexOfFirst { it.url == url }
+                        if (idx >= 0) {
+                            capturedLinks[idx] = capturedLinks[idx].copy(sizeLabel = sizeLabel)
+                        }
                     }
                 }
+            } catch (_: Throwable) {
+                // Đo dung lượng lỗi thì thôi, link vẫn tải được bình thường.
             }
         }
     }
@@ -318,11 +325,31 @@ fun BrowserScreen(
                                 view: WebView,
                                 request: WebResourceRequest,
                             ): WebResourceResponse? {
+                                // Lỗi trong lúc chặn/bắt link thì để request chạy
+                                // bình thường, không để lỗi này làm sập app.
+                                try {
+                                    return interceptSafely(view, request)
+                                } catch (_: Throwable) {
+                                    return null
+                                }
+                            }
+
+                            private fun interceptSafely(
+                                view: WebView,
+                                request: WebResourceRequest,
+                            ): WebResourceResponse? {
                                 val url = request.url.toString()
+                                // Đọc URL trang đang mở có thể lỗi khi gọi ngoài
+                                // luồng giao diện, lỗi thì coi như không biết.
+                                val documentUrl = try {
+                                    view.url
+                                } catch (_: Throwable) {
+                                    null
+                                }
                                 // Bộ lọc quảng cáo chạy TRƯỚC khi bắt link, để link
                                 // video quảng cáo bị chặn thì không lọt vào danh sách.
                                 if (!request.isForMainFrame &&
-                                    FilterStore.isBlocked(url, view.url)
+                                    FilterStore.isBlocked(url, documentUrl)
                                 ) {
                                     return emptyResponse()
                                 }
@@ -348,11 +375,12 @@ fun BrowserScreen(
 
                             override fun onPageStarted(
                                 view: WebView,
-                                url: String,
+                                url: String?,
                                 favicon: android.graphics.Bitmap?,
                             ) {
                                 super.onPageStarted(view, url, favicon)
                                 progress = 0
+                                if (url == null) return
                                 if (url == START_PAGE_BASE || url.startsWith("data:")) {
                                     showingStartPage = true
                                     currentUrl = ""
@@ -362,20 +390,20 @@ fun BrowserScreen(
                                 }
                             }
 
-                            override fun onPageFinished(view: WebView, url: String) {
+                            override fun onPageFinished(view: WebView, url: String?) {
                                 super.onPageFinished(view, url)
                                 progress = 100
                                 pageTitle = view.title ?: ""
                                 canGoBack = view.canGoBack()
                                 canGoForward = view.canGoForward()
-                                if (!addressFocused) {
+                                if (!addressFocused && url != null) {
                                     addressText = if (showingStartPage) "" else url
                                 }
                             }
 
                             override fun doUpdateVisitedHistory(
                                 view: WebView,
-                                url: String,
+                                url: String?,
                                 isReload: Boolean,
                             ) {
                                 super.doUpdateVisitedHistory(view, url, isReload)
@@ -385,23 +413,39 @@ fun BrowserScreen(
                         }
                         webChromeClient = object : WebChromeClient() {
                             override fun onProgressChanged(view: WebView, newProgress: Int) {
-                                progress = newProgress
+                                try {
+                                    progress = newProgress
+                                } catch (_: Throwable) {
+                                    // Cập nhật tiến trình lỗi thì thôi.
+                                }
                             }
 
                             override fun onReceivedTitle(view: WebView, title: String?) {
-                                pageTitle = title ?: ""
+                                try {
+                                    pageTitle = title ?: ""
+                                } catch (_: Throwable) {
+                                    // Cập nhật tiêu đề lỗi thì thôi.
+                                }
                             }
                         }
                         // Link tải file: giữ lại để tải bằng VDM thay vì để trình
                         // duyệt mặc định xử lý.
                         setDownloadListener { url, _, contentDisposition, mimeType, _ ->
-                            val fileName = URLUtil.guessFileName(url, contentDisposition, mimeType)
-                            addCaptured(url, fileName)
-                            Toast.makeText(
-                                context,
-                                "Đã thêm link tải: $fileName",
-                                Toast.LENGTH_SHORT,
-                            ).show()
+                            try {
+                                val fileName = URLUtil.guessFileName(
+                                    url,
+                                    contentDisposition,
+                                    mimeType,
+                                )
+                                addCaptured(url, fileName)
+                                Toast.makeText(
+                                    context,
+                                    "Đã thêm link tải: $fileName",
+                                    Toast.LENGTH_SHORT,
+                                ).show()
+                            } catch (_: Throwable) {
+                                // Link tải lỗi thì bỏ qua, không làm sập app.
+                            }
                         }
                         val cm = CookieManager.getInstance()
                         cm.setAcceptCookie(true)

@@ -28,6 +28,9 @@ class VdmApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // Gắn bộ ghi lỗi trước mọi thứ khác, để lỗi nào làm app tự đóng
+        // cũng để lại báo cáo xem được ở lần mở sau.
+        CrashReporter.install(this)
         Downloader.init(this)
         // Nạp bộ lọc quảng cáo đã lưu trong máy và kiểm tra bản mới, để
         // trình duyệt trong app chặn được ngay từ lần mở đầu tiên.

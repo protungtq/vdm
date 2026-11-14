@@ -10,6 +10,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.Settings
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -23,6 +24,7 @@ import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -517,6 +519,55 @@ fun VdmApp(viewModel: MainViewModel) {
         if (uiState.showImageViewer) {
             uiState.scanned?.thumbnailUrl?.let { thumb ->
                 ImageViewerDialog(imageUrl = thumb, onClose = viewModel::closeImageViewer)
+            }
+        }
+        uiState.crashReport?.let { report ->
+            CrashReportDialog(report = report, onClose = viewModel::dismissCrashReport)
+        }
+    }
+}
+
+/** Hộp hiện chi tiết lỗi làm app tự đóng ở lần mở trước, để sao chép gửi đi. */
+@Composable
+fun CrashReportDialog(report: String, onClose: () -> Unit) {
+    val context = LocalContext.current
+    Dialog(onDismissRequest = onClose) {
+        Card {
+            Column(Modifier.padding(16.dp)) {
+                Text("App gặp lỗi lần mở trước", fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "Lần mở trước, app tự đóng vì lỗi. Chi tiết ở dưới — " +
+                        "sao chép rồi gửi cho người làm app để sửa nhé.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    report,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 400.dp)
+                        .verticalScroll(rememberScrollState()),
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    TextButton(onClick = {
+                        val clip = ClipData.newPlainText("Chi tiết lỗi VDM", report)
+                        (context.getSystemService(Context.CLIPBOARD_SERVICE)
+                            as ClipboardManager).setPrimaryClip(clip)
+                        Toast.makeText(
+                            context,
+                            "Đã sao chép chi tiết lỗi.",
+                            Toast.LENGTH_SHORT,
+                        ).show()
+                    }) { Text("Sao chép") }
+                    Spacer(Modifier.width(8.dp))
+                    Button(onClick = onClose) { Text("Đóng") }
+                }
             }
         }
     }

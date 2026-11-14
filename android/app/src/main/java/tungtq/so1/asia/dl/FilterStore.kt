@@ -75,13 +75,18 @@ object FilterStore {
     /**
      * true khi request nên bị chặn. Chưa nạp bộ lọc hoặc đã tắt công tắc
      * thì luôn trả về false. Mỗi lần chặn thì tăng bộ đếm để hiện lên
-     * thanh công cụ của trình duyệt.
+     * thanh công cụ của trình duyệt. Lỗi trong lúc xét thì coi như không
+     * chặn, không để lỗi này lan ra ngoài làm sập app.
      */
     fun isBlocked(url: String, documentUrl: String?): Boolean {
         if (!adBlockingEnabled) return false
-        val blocked = engine?.isBlocked(url, documentUrl) ?: false
-        if (blocked) _blockedCount.update { it + 1 }
-        return blocked
+        return try {
+            val blocked = engine?.isBlocked(url, documentUrl) ?: false
+            if (blocked) _blockedCount.update { it + 1 }
+            blocked
+        } catch (_: Throwable) {
+            false
+        }
     }
 
     /** Đọc các bộ lọc đã lưu trong máy và dựng bộ máy, chạy nền không chặn. */
@@ -132,7 +137,7 @@ object FilterStore {
             val built = FilterListEngine.parse(texts)
             engine = built
             Log.d(TAG, "filter engine ready: ${built.ruleCount} rules from ${texts.size} lists")
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.w(TAG, "building filter engine failed", e)
         }
     }
@@ -192,7 +197,7 @@ object FilterStore {
             } finally {
                 connection.disconnect()
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             Log.w(TAG, "filter ${list.id} refresh failed", e)
             false
         }

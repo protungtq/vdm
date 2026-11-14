@@ -45,6 +45,8 @@ data class VdmUiState(
     val douyinWebViewUrl: String? = null,
     /** Đang mở trình duyệt trong app. */
     val showBrowser: Boolean = false,
+    /** Chi tiết lỗi làm app tự đóng ở lần chạy trước, để hiện hộp báo lỗi. */
+    val crashReport: String? = null,
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -67,6 +69,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.update { it.copy(engineError = error) }
             }
         }
+        // Lần chạy trước app có tự đóng vì lỗi thì đọc báo cáo để hiện lên.
+        viewModelScope.launch(Dispatchers.IO) {
+            val report = CrashReporter.readReport(getApplication())
+            if (report != null) {
+                _uiState.update { it.copy(crashReport = report) }
+            }
+        }
+    }
+
+    /** Đóng hộp báo lỗi và xóa báo cáo đã xem. */
+    fun dismissCrashReport() {
+        viewModelScope.launch(Dispatchers.IO) {
+            CrashReporter.clearReport(getApplication())
+        }
+        _uiState.update { it.copy(crashReport = null) }
     }
 
     fun setUrl(text: String) {
