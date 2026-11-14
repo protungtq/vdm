@@ -176,16 +176,17 @@ fun DownloadSheet(
     tryStartDownload = {
         val option = selected
         val video = scanned
-        if (option == null || video == null) return@tryStartDownload
-        if (!hasStorageAccess()) {
-            pendingDownload = true
-            openAllFilesAccessSettings(context)
-        } else if (!hasNotificationPermission()) {
-            pendingDownload = true
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
-        } else {
-            pendingDownload = false
-            DownloadService.start(context, pageUrl, option, video.title, cookieString)
+        if (option != null && video != null) {
+            if (!hasStorageAccess()) {
+                pendingDownload = true
+                openAllFilesAccessSettings(context)
+            } else if (!hasNotificationPermission()) {
+                pendingDownload = true
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            } else {
+                pendingDownload = false
+                DownloadService.start(context, pageUrl, option, video.title, cookieString)
+            }
         }
     }
 
