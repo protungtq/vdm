@@ -43,6 +43,8 @@ data class VdmUiState(
     val douyinFallbackUrl: String? = null,
     /** Link trang video Douyin đang mở trong WebView lấy link. */
     val douyinWebViewUrl: String? = null,
+    /** Đang mở trình duyệt trong app. */
+    val showBrowser: Boolean = false,
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -330,6 +332,55 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun closeDouyinWebView() {
         _uiState.update { it.copy(douyinWebViewUrl = null) }
+    }
+
+    fun openBrowser() {
+        _uiState.update { it.copy(showBrowser = true) }
+    }
+
+    fun closeBrowser() {
+        _uiState.update { it.copy(showBrowser = false) }
+    }
+
+    /** Quét trang đang mở trong trình duyệt bằng bộ quét chính (yt-dlp). */
+    fun scanPage(pageUrl: String) {
+        _uiState.update {
+            it.copy(showBrowser = false, urlText = pageUrl, message = null)
+        }
+        scan()
+    }
+
+    /** Trình duyệt bắt được link file trực tiếp: dựng kết quả quét để tải như thường. */
+    fun onBrowserMediaFound(directUrl: String, pageTitle: String?, pageUrl: String?) {
+        val option = VideoFormatOption(
+            formatSpec = Downloader.DIRECT_SPEC,
+            label = "File (tải trực tiếp)",
+            sizeLabel = null,
+            directUrl = directUrl,
+            referer = pageUrl,
+        )
+        _uiState.update {
+            it.copy(
+                showBrowser = false,
+                message = null,
+                urlText = pageUrl ?: it.urlText,
+                scanned = ScannedVideo(
+                    title = pageTitle?.takeIf { t -> t.isNotBlank() } ?: "File từ trình duyệt",
+                    uploader = null,
+                    durationSeconds = null,
+                    thumbnailUrl = null,
+                    webpageUrl = pageUrl,
+                    options = listOf(option),
+                    previewVideo = PreviewMedia(
+                        url = directUrl,
+                        headers = pageUrl?.let { mapOf("Referer" to it) } ?: emptyMap(),
+                        mimeType = null,
+                    ),
+                    viaFallback = true,
+                ),
+                selectedSpec = Downloader.DIRECT_SPEC,
+            )
+        }
     }
 
     /** WebView đã lấy được link video trực tiếp: dựng kết quả quét để tải như thường. */

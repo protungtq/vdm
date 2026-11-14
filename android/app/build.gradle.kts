@@ -12,8 +12,8 @@ android {
         applicationId = "tungtq.so1.asia"
         minSdk = 26
         targetSdk = 35
-        versionCode = 11
-        versionName = "0.2.8"
+        versionCode = 12
+        versionName = "0.2.9"
 
         ndk {
             // youtubedl-android nhúng Python/FFmpeg/aria2c cho cả 4 kiến trúc

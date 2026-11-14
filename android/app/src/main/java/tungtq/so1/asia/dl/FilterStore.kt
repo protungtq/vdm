@@ -8,6 +8,10 @@ import java.net.URL
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 /**
@@ -55,13 +59,29 @@ object FilterStore {
     @Volatile
     private var refreshRunning = false
 
+    /** Công tắc chặn quảng cáo, bật sẵn; tắt thì WebView chạy như thường. */
+    @Volatile
+    var adBlockingEnabled: Boolean = true
+
+    private val _blockedCount = MutableStateFlow(0)
+
+    /** Số request quảng cáo đã chặn từ lúc mở app. */
+    val blockedCount: StateFlow<Int> = _blockedCount.asStateFlow()
+
     /** true khi đã nạp được ít nhất 1 bộ lọc vào bộ máy. */
     val isReady: Boolean
         get() = engine != null
 
-    /** true khi request nên bị chặn. Chưa nạp bộ lọc thì luôn trả về false. */
+    /**
+     * true khi request nên bị chặn. Chưa nạp bộ lọc hoặc đã tắt công tắc
+     * thì luôn trả về false. Mỗi lần chặn thì tăng bộ đếm để hiện lên
+     * thanh công cụ của trình duyệt.
+     */
     fun isBlocked(url: String, documentUrl: String?): Boolean {
-        return engine?.isBlocked(url, documentUrl) ?: false
+        if (!adBlockingEnabled) return false
+        val blocked = engine?.isBlocked(url, documentUrl) ?: false
+        if (blocked) _blockedCount.update { it + 1 }
+        return blocked
     }
 
     /** Đọc các bộ lọc đã lưu trong máy và dựng bộ máy, chạy nền không chặn. */

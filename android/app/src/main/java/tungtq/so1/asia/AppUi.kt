@@ -38,6 +38,7 @@ import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
@@ -210,6 +211,14 @@ fun VdmApp(viewModel: MainViewModel) {
                     viewModel.onDouyinVideoFoundAndDownload(context, url, title, noWatermark)
                 },
                 onClose = viewModel::closeDouyinWebView,
+            )
+            return@MaterialTheme
+        }
+        if (uiState.showBrowser) {
+            BrowserScreen(
+                onMediaFound = viewModel::onBrowserMediaFound,
+                onScanPage = viewModel::scanPage,
+                onClose = viewModel::closeBrowser,
             )
             return@MaterialTheme
         }
@@ -486,6 +495,15 @@ fun VdmApp(viewModel: MainViewModel) {
                             Icon(Icons.Default.Lock, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
                             Text("Cookie & đăng nhập")
+                        }
+                        Spacer(Modifier.height(8.dp))
+                        OutlinedButton(
+                            onClick = { viewModel.openBrowser() },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(Icons.Default.Public, contentDescription = null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("Trình duyệt (chặn quảng cáo)")
                         }
                         Spacer(Modifier.height(8.dp))
                         Text(
