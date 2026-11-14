@@ -6,9 +6,11 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.view.ViewGroup
+import android.webkit.CookieManager
 import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,17 +21,21 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
+import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Refresh
@@ -44,7 +50,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.lightColorScheme
@@ -63,9 +68,11 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import vn.tunglv.browser.BrowserViewModel
@@ -194,6 +201,7 @@ private fun BrowserMainScreen(
     var addressText by remember { mutableStateOf("") }
     var addressFocused by remember { mutableStateOf(false) }
     var menuExpanded by remember { mutableStateOf(false) }
+    var downloadSheet by remember { mutableStateOf<Pair<String, String?>?>(null) }
 
     val tabUrl = activeTab?.url?.value ?: ""
     val tabIsStartPage = activeTab?.isStartPage?.value ?: true
@@ -224,6 +232,9 @@ private fun BrowserMainScreen(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
+                // Android 15 vẽ tràn lên thanh trạng thái: chừa chỗ cho nó
+                // thì hàng công cụ mới không bị lố lên trên màn hình.
+                .statusBarsPadding()
                 .padding(horizontal = 4.dp, vertical = 4.dp),
         ) {
             // Công tắc chặn quảng cáo + số request đã chặn.
@@ -250,17 +261,45 @@ private fun BrowserMainScreen(
                 "$blockedCount",
                 style = MaterialTheme.typography.bodySmall,
             )
-            OutlinedTextField(
+            // Ô địa chỉ gọn (40dp): OutlinedTextField mặc định cao 56dp, đặt
+            // trong hàng công cụ trông lố và đẩy các nút khác lệch.
+            BasicTextField(
                 value = addressText,
                 onValueChange = { addressText = it },
-                placeholder = { Text("Nhập địa chỉ hoặc từ khóa…") },
                 singleLine = true,
+                textStyle = TextStyle(
+                    fontSize = 15.sp,
+                    color = MaterialTheme.colorScheme.onSurface,
+                ),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Go),
                 keyboardActions = KeyboardActions(onGo = { goTo(addressText) }),
                 modifier = Modifier
                     .weight(1f)
                     .padding(horizontal = 4.dp)
                     .onFocusChanged { addressFocused = it.isFocused },
+                decorationBox = { innerTextField ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier
+                            .background(
+                                MaterialTheme.colorScheme.surfaceVariant,
+                                RoundedCornerShape(20.dp),
+                            )
+                            .height(40.dp)
+                            .padding(horizontal = 12.dp),
+                    ) {
+                        Box(Modifier.weight(1f)) {
+                            if (addressText.isEmpty()) {
+                                Text(
+                                    "Nhập địa chỉ hoặc từ khóa…",
+                                    fontSize = 15.sp,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            innerTextField()
+                        }
+                    }
+                },
             )
             // Nút xem tab, hiện số tab đang mở.
             IconButton(onClick = onOpenTabs) {
@@ -276,6 +315,20 @@ private fun BrowserMainScreen(
                         fontWeight = FontWeight.Bold,
                     )
                 }
+            }
+            // Nút tải media của trang đang mở, đặt cạnh ô số tab.
+            IconButton(
+                onClick = {
+                    val cookies = try {
+                        CookieManager.getInstance().getCookie(tabUrl)
+                    } catch (_: Exception) {
+                        null
+                    }
+                    downloadSheet = tabUrl to cookies
+                },
+                enabled = tabUrl.startsWith("http://") || tabUrl.startsWith("https://"),
+            ) {
+                Icon(Icons.Default.Download, contentDescription = "Tải media của trang này")
             }
             Box {
                 IconButton(onClick = { menuExpanded = true }) {
@@ -404,6 +457,7 @@ private fun BrowserMainScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .navigationBarsPadding()
                 .padding(vertical = 4.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
@@ -446,6 +500,13 @@ private fun BrowserMainScreen(
                 )
             }
         }
+    }
+    downloadSheet?.let { (sheetUrl, sheetCookies) ->
+        DownloadSheet(
+            pageUrl = sheetUrl,
+            cookieString = sheetCookies,
+            onClose = { downloadSheet = null },
+        )
     }
 }
 
