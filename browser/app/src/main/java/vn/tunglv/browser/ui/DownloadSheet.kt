@@ -228,7 +228,8 @@ fun DownloadSheet(
                     }
                 }
                 ScanState.READY -> {
-                    val video = scanned ?: return@Column
+                    val video = scanned
+                    if (video != null) {
                     video.thumbnailUrl?.let { thumb ->
                         AsyncImage(
                             model = thumb,
@@ -317,6 +318,7 @@ fun DownloadSheet(
                             "File lưu ở thư mục Download/VN Browser.",
                             style = MaterialTheme.typography.bodySmall,
                         )
+                    }
                     }
                 }
             }
