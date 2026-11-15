@@ -515,13 +515,14 @@ a{display:flex;flex-direction:column;align-items:center;gap:8px;text-decoration:
 a i{width:56px;height:56px;border-radius:18px;display:flex;align-items:center;
   justify-content:center;font-style:normal;font-size:24px;font-weight:800;color:#fff}
 .g{background:#4285F4}.y{background:#FF0000}.f{background:#1877F2}.t{background:#111}
-.d{background:#FE2C55}.x{background:#000}.r{background:#FF4500}.v{background:#17B3E8}
+.z{background:#0068FF}.ig{background:#E1306C}.s{background:#EE4D2D}.l{background:#0F156D}
+.vn{background:#D71920}.tt{background:#B71C1C}.w{background:#333}.m{background:#EA4335}
 @media (prefers-color-scheme:dark){
 body{background:#131211;color:#f5f2ef}
 p{color:#a8a29b}
 input{background:#262421;border-color:#38342f;color:#f5f2ef}
 a{color:#f5f2ef}
-.t,.x{background:#333}
+.t,.w{background:#333}
 }
 </style></head><body>
 <div class="head"><div class="logo">V</div><h1>VN Browser</h1></div>
@@ -535,9 +536,13 @@ a{color:#f5f2ef}
 <a href="https://m.youtube.com"><i class="y">▶</i>YouTube</a>
 <a href="https://m.facebook.com"><i class="f">f</i>Facebook</a>
 <a href="https://www.tiktok.com"><i class="t">♪</i>TikTok</a>
-<a href="https://www.douyin.com"><i class="d">♪</i>Douyin</a>
-<a href="https://x.com"><i class="x">𝕏</i>X</a>
-<a href="https://www.reddit.com"><i class="r">R</i>Reddit</a>
-<a href="https://vimeo.com"><i class="v">V</i>Vimeo</a>
+<a href="https://zalo.me"><i class="z">Z</i>Zalo</a>
+<a href="https://www.instagram.com"><i class="ig">◎</i>Instagram</a>
+<a href="https://shopee.vn"><i class="s">S</i>Shopee</a>
+<a href="https://www.lazada.vn"><i class="l">L</i>Lazada</a>
+<a href="https://vnexpress.net"><i class="vn">V</i>VnExpress</a>
+<a href="https://tuoitre.vn"><i class="tt">T</i>Tuổi Trẻ</a>
+<a href="https://vi.wikipedia.org"><i class="w">W</i>Wikipedia</a>
+<a href="https://mail.google.com"><i class="m">M</i>Gmail</a>
 </div></body></html>
 """
