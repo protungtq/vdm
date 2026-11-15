@@ -135,3 +135,103 @@ test('offline check reports a readable error', async () => {
   assert.strictEqual(st.status, 'error');
   assert.match(st.error, /internet/);
 });
+
+// GitHub's API limits anonymous requests per IP (403 / 429). The update check must still work through the release pages.
+async function limitedServer({ filesReady = true } = {}) {
+  const srv = http.createServer((req, res) => {
+    if (req.url.startsWith('/repos/')) {
+      res.writeHead(403, { 'Content-Type': 'application/json' });
+      return res.end('{"message":"API rate limit exceeded"}');
+    }
+    if (req.url === '/me/vdm/releases/latest') {
+      res.writeHead(302, { Location: '/me/vdm/releases/tag/v0.2.0' });
+      return res.end();
+    }
+    if (req.url === '/me/vdm/releases/tag/v0.2.0') {
+      res.writeHead(200, { 'Content-Type': 'text/html' });
+      return res.end('<html></html>');
+    }
+    if (filesReady && req.url === '/me/vdm/releases/download/v0.2.0/VDM-Setup-0.2.0.exe') {
+      res.writeHead(302, { Location: '/storage/setup' });
+      return res.end();
+    }
+    if (req.url === '/storage/setup') {
+      res.writeHead(200, { 'Content-Length': installer.length });
+      return res.end(installer);
+    }
+    res.writeHead(404);
+    res.end();
+  });
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+  return { srv, base: `http://127.0.0.1:${srv.address().port}` };
+}
+
+test('when the API refuses (rate limit), the release pages are used instead', async () => {
+  const { srv, base } = await limitedServer();
+  const u = make(base, { webBase: base, allowedPrefixes: [base] });
+  const st = await u.check();
+  assert.strictEqual(st.status, 'available');
+  assert.strictEqual(st.version, '0.2.0');
+  assert.strictEqual(st.asset.name, 'VDM-Setup-0.2.0.exe');
+  const done = await u.download();
+  assert.ok(fs.readFileSync(done.file).equals(installer));
+  srv.close();
+  srv.closeAllConnections();
+});
+
+test('rate limit, and the installer is not published yet: no update is offered', async () => {
+  const { srv, base } = await limitedServer({ filesReady: false });
+  const u = make(base, { webBase: base, allowedPrefixes: [base] });
+  assert.strictEqual((await u.check()).status, 'none');
+  srv.close();
+  srv.closeAllConnections();
+});
+
+test('rate limit and the release pages unreachable: the error says so', async () => {
+  const srv = http.createServer((req, res) => {
+    res.writeHead(403);
+    res.end('{}');
+  });
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${srv.address().port}`;
+  const u = make(base, { webBase: base, allowedPrefixes: [base] });
+  const st = await u.check();
+  assert.strictEqual(st.status, 'error');
+  assert.match(st.error, /403/);
+  srv.close();
+  srv.closeAllConnections();
+});
+
+test('a release whose installers are still being uploaded is not offered yet', async () => {
+  let ready = false;
+  const { srv, base } = await server((b) => ({ ...rel('0.2.0')(b), assets: ready ? rel('0.2.0')(b).assets : [] }));
+  const u = make(base);
+  assert.strictEqual((await u.check()).status, 'none');
+  ready = true;
+  const st = await u.check();
+  assert.strictEqual(st.status, 'available');
+  assert.ok(st.asset, 'the installer is there now, so the app can install it itself');
+  u.stop();
+  srv.close();
+  srv.closeAllConnections();
+});
+
+test('the release location matches whatever letter case GitHub uses for the repository', async () => {
+  const { srv, base } = await server(rel('0.2.0'));
+  const u = make(base, { allowedPrefixes: [base.toUpperCase()] }); // GitHub spells the repo the way it was created; the allowed prefix may use different letter case
+  await u.check();
+  assert.strictEqual((await u.download()).status, 'ready');
+  srv.close();
+  srv.closeAllConnections();
+});
+
+test('a refused download location is shown as an error, not silently ignored', async () => {
+  const { srv, base } = await server(rel('0.2.0'));
+  const u = make(base, { allowedPrefixes: ['https://github.com/me/vdm/releases/download/'] });
+  await u.check();
+  await u.download().catch(() => {});
+  assert.strictEqual(u.state.status, 'error');
+  assert.strictEqual(u.state.stage, 'download');
+  srv.close();
+  srv.closeAllConnections();
+});

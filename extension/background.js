@@ -200,17 +200,58 @@ chrome.tabs.onUpdated.addListener((tabId, info) => {
 });
 chrome.tabs.onRemoved.addListener((tabId) => chrome.storage.session.remove(tabKey(tabId)));
 
-/** Sends "download the video on this tab" to VDM. preferred: a specific stream to try first. */
-async function grabVideo(tab, { frameUrl = '', src = '', title = '', preferred = null } = {}) {
+/**
+ * Streams that belong to the clicked video. A page can load several videos at once, so "everything the tab
+ * requested" would download the wrong one. A stream belongs to a video when it was requested around the time
+ * that video started loading.
+ */
+const MATCH_BEFORE = 4000; // players fetch the playlist a moment before the <video> reports loadstart
+const MATCH_AFTER = 10000;
+const MATCH_CLUSTER = 1500; // a player's own requests (master playlist, variants) come in a burst
+function streamsForVideo(found, since) {
+  if (!since) return [];
+  const near = found
+    .filter((x) => x.time >= since - MATCH_BEFORE && x.time <= since + MATCH_AFTER)
+    .sort((a, b) => Math.abs(a.time - since) - Math.abs(b.time - since));
+  // only the request nearest to the moment this video started, and the ones that came with it: other
+  // videos on the page loaded theirs at other times
+  return near.length ? near.filter((x) => Math.abs(x.time - near[0].time) <= MATCH_CLUSTER) : [];
+}
+
+/**
+ * Sends "download this video" to VDM. Called from the page's button with `target` (what the clicked video
+ * is: its own file URL, the link to its page, when it started loading) or, from the toolbar popup, with a
+ * stream picked in the list (`preferred`) or nothing (the tab's video).
+ */
+async function grabVideo(tab, { frameUrl = '', target = null, title = '', preferred = null } = {}) {
   const found = await getMedia(tab.id);
-  const streams = preferred ? [preferred, ...found.filter((x) => x.url !== preferred.url)] : [...found];
-  if (/^https?:/i.test(src) && !streams.some((x) => x.url === src)) streams.unshift({ url: src, kind: 'file', size: -1 });
+  let streams = preferred ? [preferred, ...found.filter((x) => x.url !== preferred.url)] : [...found];
+  let pageUrl = tab.url || '';
+  let ordered = false;
+  let streamsFirst = false;
+  if (target) {
+    ordered = !!target.many; // with many videos the list below is already in the right order for THIS one: don't re-sort it
+    const direct = /^https?:/i.test(target.src || '') ? [{ url: target.src, kind: 'file', size: -1 }] : [];
+    const others = new Set(target.others || []);
+    let mine = streamsForVideo(found.filter((x) => !others.has(x.url)), target.since);
+    if (!mine.length && !direct.length && !target.permalink && target.many && found.length) {
+      // nothing to go on but the clock: the request nearest to when this video started
+      const near = target.since ? found.filter((x) => !others.has(x.url)).sort((a, b) => Math.abs(a.time - target.since) - Math.abs(b.time - target.since))[0] : null;
+      mine = near ? [near] : [];
+    }
+    streams = target.many ? [...direct, ...mine.filter((x) => !direct.some((d) => d.url === x.url))] : [...direct, ...found.filter((x) => !direct.some((d) => d.url === x.url))];
+    if (target.permalink) pageUrl = target.permalink; // this video's own page, not the feed it is shown in
+    // On a page with many videos the page itself is the last thing to try, never the first.
+    streamsFirst = !!target.many && !target.permalink;
+  }
   return send({
     media: true,
-    pageUrl: tab.url || '',
+    pageUrl,
     frameUrl: frameUrl && frameUrl !== tab.url ? frameUrl : '',
     title: title || tab.title || '',
     streams,
+    ordered,
+    streamsFirst,
     referrer: tab.url || '',
     cookies: await cookiesFor(tab.url || (streams[0] && streams[0].url) || ''),
   });
@@ -223,7 +264,7 @@ chrome.runtime.onMessage.addListener((msg, sender, reply) => {
     return true;
   }
   if (msg.type === 'grab-video' && sender.tab) {
-    grabVideo(sender.tab, { frameUrl: sender.frameId ? sender.url : '', src: msg.src, title: msg.title }).then(reply);
+    grabVideo(sender.tab, { frameUrl: sender.frameId ? sender.url : '', target: msg.target || null, title: msg.title }).then(reply);
     return true;
   }
   if (msg.type === 'tab-media') {

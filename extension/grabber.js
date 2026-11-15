@@ -80,12 +80,66 @@
     hideTimer = setTimeout(hide, 900);
   });
 
+  // ---- which video was clicked? (a page can have many: feeds, galleries, grids of previews)
+  // When each video started loading, so the background script can match it to the network request that fed it.
+  const startedAt = new WeakMap();
+  for (const ev of ['loadstart', 'play']) {
+    document.addEventListener(ev, (e) => e.target && e.target.tagName === 'VIDEO' && startedAt.set(e.target, Date.now()), true);
+  }
+  const sameAsPage = (u) => u.split('#')[0] === location.href.split('#')[0];
+  const isLink = (a) => {
+    try {
+      const u = new URL(a.href);
+      return /^https?:$/.test(u.protocol) && !sameAsPage(u.href);
+    } catch {
+      return false;
+    }
+  };
+  // Links that usually lead to one video's own page.
+  const PERMALINK = /\/(status|statuses|watch|videos?|v|reels?|clips?|p|posts?|view|movie|episode|embed|shorts|tv|film|play|media)([/?#.]|$)|[?&](v|video|video_id|vid)=/i;
+  const isBig = (v) => {
+    const r = v.getBoundingClientRect();
+    return r.width >= 200 && r.height >= 110;
+  };
+
+  /** The page of this video: the link around it, or the link in the same card (never one that holds other videos too). */
+  function cardOf(v) {
+    const own = v.closest('a[href]');
+    if (own && isLink(own)) return { link: own.href, box: own };
+    let box = v.parentElement;
+    for (let depth = 0; box && box !== document.body && depth < 14; depth++, box = box.parentElement) {
+      if (box.querySelectorAll('video').length > 1) break; // that's more than this video's card
+      const link = [...box.querySelectorAll('a[href]')].find((a) => isLink(a) && PERMALINK.test(new URL(a.href).pathname + new URL(a.href).search));
+      if (link) return { link: link.href, box };
+    }
+    return null;
+  }
+
+  function describeTarget(v) {
+    const card = cardOf(v);
+    const src = v ? v.currentSrc || v.src || '' : '';
+    let title = '';
+    if (card) {
+      const h = card.box.querySelector && card.box.querySelector('h1,h2,h3,h4');
+      title = ((h && h.textContent) || card.box.getAttribute('aria-label') || card.box.title || '').replace(/\s+/g, ' ').trim().slice(0, 200);
+    }
+    return {
+      src: /^https?:/i.test(src) ? src : '', // blob: and MediaSource URLs only exist inside the page
+      permalink: card ? card.link : '',
+      title: title || document.title,
+      many: [...document.querySelectorAll('video')].filter(isBig).length > 1,
+      // files that other videos on the page are playing: those are never this video's
+      others: [...document.querySelectorAll('video')].filter((x) => x !== v).map((x) => x.currentSrc || x.src).filter((x) => /^https?:/i.test(x)).slice(0, 50),
+      since: (v && startedAt.get(v)) || 0,
+    };
+  }
+
   btn.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
-    const src = current ? current.currentSrc || current.src : '';
+    const target = current ? describeTarget(current) : null;
     label.textContent = 'Sending…';
-    chrome.runtime.sendMessage({ type: 'grab-video', src, title: document.title }, (ok) => {
+    chrome.runtime.sendMessage({ type: 'grab-video', target, title: target ? target.title : document.title }, (ok) => {
       label.textContent = chrome.runtime.lastError || !ok ? 'VDM isn’t running' : 'Sent to VDM ✓';
       setTimeout(() => (label.textContent = 'Download video'), 2200);
     });

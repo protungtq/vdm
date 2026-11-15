@@ -363,8 +363,12 @@ function wireManagerEvents() {
   manager.on('completed', (s) => {
     const s0 = settings.get();
     const progressOpen = windows.progress.has(s.id);
-    if (progressOpen && !s0.showCompleteWindow) windows.closeProgress(s.id);
-    if (s0.notifications && Notification.isSupported() && !(progressOpen && s0.showCompleteWindow)) {
+    // The progress window never turns into the finished window: it closes, and a separate "Download complete"
+    // window opens on top of everything. Files the queue downloads in the background only get a notification.
+    if (progressOpen) windows.closeProgress(s.id);
+    const showWindow = s0.showCompleteWindow && (progressOpen || !s.queued);
+    if (showWindow) windows.openComplete(s.id);
+    else if (s0.notifications && Notification.isSupported()) {
       const n = new Notification({ title: t('Download complete'), body: s.filename, icon: path.join(ASSETS, 'app-256.png') });
       n.on('click', () => shell.showItemInFolder(s.savePath));
       n.show();
@@ -1010,7 +1014,9 @@ function startUpdater() {
 /** Button in the sidebar: download → (ready) restart and install; the portable build opens the release page. */
 async function updateAction(win) {
   if (!updater) return null;
-  const st = updater.state;
+  let st = updater.state;
+  // Found while the release's files were still being uploaded: look again before sending anyone to a web page.
+  if (st.status === 'available' && !st.portable && !st.asset) st = await updater.check();
   if (st.status === 'available' && (st.portable || !st.asset)) {
     shell.openExternal(st.page);
     return st;

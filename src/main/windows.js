@@ -38,6 +38,7 @@ class Windows {
     this.main = null;
     this.dialogs = new Set();
     this.progress = new Map(); // download id -> window
+    this.complete = new Map(); // download id -> "Download complete" window
     this.player = null;
   }
 
@@ -183,6 +184,32 @@ class Windows {
     this.progress.set(id, win);
     win.on('closed', () => this.progress.delete(id));
     this.cascade(win);
+    return win;
+  }
+
+  /**
+   * "Download complete": its own window (not the progress window turning into one), opened above every other
+   * window so it is seen even when another program is in front. Stays on top until it is closed.
+   */
+  openComplete(id) {
+    const existing = this.complete.get(id);
+    if (existing && !existing.isDestroyed()) {
+      existing.show();
+      existing.moveTop();
+      return existing;
+    }
+    const win = this.create('dialog', 'complete.html', { width: 520, height: 272, query: { id }, title: t('Download complete'), show: false });
+    this.complete.set(id, win);
+    win.on('closed', () => this.complete.delete(id));
+    this.cascade(win);
+    win.once('ready-to-show', () => {
+      if (win.isDestroyed()) return;
+      if (win.isMinimized()) win.restore();
+      win.setAlwaysOnTop(true, 'screen-saver');
+      win.show();
+      win.moveTop();
+      win.focus();
+    });
     return win;
   }
 

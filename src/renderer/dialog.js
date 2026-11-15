@@ -510,9 +510,11 @@
       const p = (await api.invoke('dialog:payload', params.get('token'))) || {};
       Object.assign(ctx, { referrer: p.referrer || p.pageUrl || '', cookies: p.cookies || '', userAgent: p.userAgent || '', source: 'browser' });
       const rank = { hls: 0, dash: 1, file: 2 };
-      const streams = (p.streams || []).slice().sort((a, b) => (rank[a.kind] ?? 3) - (rank[b.kind] ?? 3) || (b.size || 0) - (a.size || 0)).map((x) => x.url);
+      // The extension already put a clicked video's own streams in order; only an unspecific list (toolbar) is sorted.
+      const given = (p.streams || []).slice();
+      const streams = (p.ordered ? given : given.sort((a, b) => (rank[a.kind] ?? 3) - (rank[b.kind] ?? 3) || (b.size || 0) - (a.size || 0))).map((x) => x.url);
       const sitePage = p.pageUrl && (await api.invoke('media:isVideoPage', p.pageUrl));
-      const order = sitePage ? [p.pageUrl, ...streams, p.frameUrl] : [...streams, p.frameUrl, p.pageUrl];
+      const order = p.streamsFirst ? [...streams, p.frameUrl, p.pageUrl] : sitePage ? [p.pageUrl, ...streams, p.frameUrl] : [...streams, p.frameUrl, p.pageUrl];
       const list = [...new Set(order.filter(Boolean))];
       const file = (p.streams || []).find((x) => x.kind === 'file');
       return showMedia({ url: list[0], candidates: list.slice(1), title: p.title || '', fileUrl: file ? file.url : '' });

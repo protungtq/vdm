@@ -67,6 +67,8 @@ function startIntegrationServer({ version, isEnabled, onDownload, extra = () => 
             pageUrl: valid(p.pageUrl) ? p.pageUrl : '',
             frameUrl: valid(p.frameUrl) ? p.frameUrl : '',
             title: typeof p.title === 'string' ? p.title.slice(0, 300) : '',
+            ordered: p.ordered === true,
+            streamsFirst: p.streamsFirst === true,
             streams: streams.map((x) => ({ url: x.url, kind: String(x.kind || '').slice(0, 10), size: Number(x.size) || -1 })),
             referrer: typeof p.referrer === 'string' ? p.referrer.slice(0, 4096) : '',
             cookies: typeof p.cookies === 'string' ? p.cookies.slice(0, 16384) : '',

@@ -10,6 +10,46 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   const ENTRIES = [
     {
+      version: '0.2.2',
+      date: '2026-11-14',
+      items: [
+        {
+          icon: 'tool',
+          title: { en: 'Update button fixed' },
+          text: {
+            en: 'The Update Available button works again: it installs the new version itself instead of doing nothing. If an update is found while its files are still being uploaded, VDM waits for them.',
+          },
+        },
+      ],
+    },
+    {
+      version: '0.2.1',
+      date: '2026-11-14',
+      items: [
+        {
+          icon: 'tool',
+          title: { en: 'Download video: the right video' },
+          text: {
+            en: 'On pages with several videos, the browser button now downloads the video you clicked instead of another one. Reload the VDM extension in your browser to get this fix.',
+          },
+        },
+        {
+          icon: 'star',
+          title: { en: 'A window when a download finishes' },
+          text: {
+            en: 'A separate “Download complete” window opens on top of everything, with Open and Open folder.',
+          },
+        },
+        {
+          icon: 'globe',
+          title: { en: 'Update check fixed' },
+          text: {
+            en: 'Update checks no longer fail with “GitHub responded 403” on shared networks and VPNs.',
+          },
+        },
+      ],
+    },
+    {
       version: '0.2.0',
       date: '2026-11-13',
       items: [

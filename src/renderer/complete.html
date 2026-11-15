@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'" />
+    <title>Download complete</title>
+    <link rel="stylesheet" href="styles/base.css" />
+    <link rel="stylesheet" href="styles/themes.css" />
+    <link rel="stylesheet" href="styles/dialog.css" />
+    <link rel="stylesheet" href="styles/complete.css" />
+  </head>
+  <body class="dialog complete">
+    <header class="titlebar">
+      <img class="tb-icon" src="assets/icons/logo.svg" alt="" />
+      <span class="tb-title">Download complete</span>
+    </header>
+
+    <div class="page cp-page">
+      <div class="cp-head">
+        <div class="cp-check" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
+        </div>
+        <div class="cp-head-text">
+          <div class="cp-title">Download complete</div>
+          <div class="cp-sub" id="cpSub"></div>
+        </div>
+      </div>
+
+      <div class="cp-file">
+        <img id="cpCat" src="assets/categories/other-max.svg" alt="" />
+        <div class="cp-file-text">
+          <div class="cp-name" id="cpName"></div>
+          <div class="cp-path" id="cpPath"></div>
+        </div>
+      </div>
+
+      <div class="cp-foot">
+        <label class="cp-check-row"><input type="checkbox" id="cpNever" /><span>Don’t show this window again</span></label>
+        <div class="cp-actions">
+          <button type="button" class="btn btn-primary" id="cpOpen"><img src="assets/icons/btn-play.svg" alt="" style="filter: brightness(0) invert(1)" /><span>Open</span></button>
+          <button type="button" class="btn btn-outline" id="cpFolder"><img src="assets/icons/folder.svg" alt="" /><span>Open folder</span></button>
+          <button type="button" class="btn btn-secondary" id="cpClose"><img src="assets/icons/btn-x.svg" alt="" /><span>Close</span></button>
+        </div>
+      </div>
+    </div>
+
+    <script src="../shared/i18n.js"></script>
+    <script src="common.js"></script>
+    <script src="complete.js"></script>
+  </body>
+</html>
