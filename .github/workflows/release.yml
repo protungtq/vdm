@@ -32,6 +32,7 @@ jobs:
   # Tag pushes only: create the release. If it already exists (someone published it by hand, which
   # also creates the tag), the "release" event is building it, so this run builds nothing.
   release:
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'v')
     runs-on: ubuntu-latest
     outputs:
       build: ${{ steps.create.outputs.build }}
