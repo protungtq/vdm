@@ -10,6 +10,33 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   const ENTRIES = [
     {
+      version: '0.2.4',
+      date: '2026-11-16',
+      items: [
+        {
+          icon: 'tool',
+          title: { en: 'Download video button: close it, and it stays out of the way' },
+          text: {
+            en: 'The button in the browser has a × to close it. It moves to another corner when it would cover a site’s own buttons, and you can turn it off for one website in the extension’s popup. Reload the VDM extension to get this.',
+          },
+        },
+        {
+          icon: 'star',
+          title: { en: 'The extension stays in Edge and Chrome' },
+          text: {
+            en: 'VDM now keeps its browser extension in a permanent folder, so the browser no longer forgets it after a restart (this affected the portable version). Settings → Browser integration → Open extension folder shows it. Load that folder in your browser once.',
+          },
+        },
+        {
+          icon: 'clock',
+          title: { en: 'Update button fixed' },
+          text: {
+            en: 'The Update Available button works again, and VDM waits for a new release’s files before offering it.',
+          },
+        },
+      ],
+    },
+    {
       version: '0.2.2',
       date: '2026-11-14',
       items: [

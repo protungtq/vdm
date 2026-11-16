@@ -1,7 +1,7 @@
 {
   "name": "vn-download-manager",
   "productName": "VN Download Manager",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "VN Download Manager (VDM): a minimal, fast, multi-connection download manager for Windows",
   "main": "src/main/main.js",
   "author": "Mojtaba",
@@ -17,7 +17,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "test": "node --test --test-concurrency=1 test/engine.test.js test/media.test.js test/updater.test.js test/extension.test.js test/server.test.js test/proxy.test.js",
+    "test": "node --test --test-concurrency=1 test/engine.test.js test/media.test.js test/updater.test.js test/extension.test.js test/server.test.js test/proxy.test.js test/extension-copy.test.js",
     "icons": "node scripts/make-icons.js",
     "ui-check": "node scripts/ui-check.js shots light",
     "dist:win": "electron-builder --win nsis portable --x64 --publish never",

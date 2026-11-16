@@ -10,6 +10,10 @@
 
 Tải đa kết nối · Bắt video YouTube, X và hơn 1000 trang · Hàng đợi và hẹn giờ · 10 giao diện
 
+> ⚠️ **Đang dùng VDM 0.2.1 trở xuống? Hãy cài bản mới nhất bằng tay một lần.**
+> Nút *Update Available!* ở các bản đó không cài được bản cập nhật (nó không làm gì cả, hoặc báo lỗi "GitHub responded 403").
+> Tải **VDM-Setup.exe** bên dưới và chạy: cài đặt và danh sách tải của bạn vẫn được giữ. Sau đó, các bản cập nhật sẽ tự cài lại như thường.
+
 ### Tải về
 
 <a href="https://github.com/protungtq/vdm/releases/latest/download/VDM-Setup.exe"><img src="docs/buttons/windows-en.svg" alt="Tải cho Windows" height="56" /></a>
@@ -172,7 +176,8 @@ Dùng các nút tải ở đầu trang này, hoặc chọn file trong trang [Rel
 
 1. Mở `chrome://extensions` (hoặc `edge://extensions`) và bật **Developer mode**.
 2. Bấm **Load unpacked** và chọn thư mục extension. Để tìm thư mục này, mở **Settings → Browser integration → Open
-   extension folder** trong VDM.
+   extension folder** trong VDM. Đó là bản sao cố định lưu trong thư mục dữ liệu của VDM, nên trình duyệt vẫn giữ
+   extension sau khi khởi động lại, kể cả khi bạn dùng bản portable; VDM tự làm mới các tệp sau mỗi lần cập nhật.
 
 ---
 

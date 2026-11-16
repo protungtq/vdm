@@ -34,3 +34,4 @@ button.secondary:hover { background: rgba(127, 127, 127, 0.08); }
 .v-kind.hls, .v-kind.dash { background: #1e83f1; }
 .v-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text); }
 .v-size { color: var(--muted); flex: none; }
+.row[hidden] { display: none; }

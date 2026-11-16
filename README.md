@@ -10,6 +10,10 @@
 
 Multi-connection downloads · Video grabber for YouTube, X and 1000+ sites · Queue and scheduler · 10 themes
 
+> ⚠️ **Using VDM 0.2.1 or older? Install the latest version by hand, once.**
+> The *Update Available!* button of those versions can't install updates (it did nothing, or failed with "GitHub responded 403").
+> Download **VDM-Setup.exe** below and run it: your settings and downloads are kept. After that, updates install themselves again.
+
 ### Download
 
 <a href="https://github.com/protungtq/vdm/releases/latest/download/VDM-Setup.exe"><img src="docs/buttons/windows-en.svg" alt="Download for Windows" height="56" /></a>
@@ -187,7 +191,8 @@ Use the download buttons at the top of this page, or pick a file on the [Release
 
 1. Open `chrome://extensions` (or `edge://extensions`) and turn on **Developer mode**.
 2. Click **Load unpacked** and select the extension folder. To find it, open **Settings → Browser integration → Open
-   extension folder** in VDM.
+   extension folder** in VDM. That folder is a permanent copy kept in VDM's data folder, so the browser keeps the
+   extension after a restart, even if you use the portable version; VDM refreshes its files after each update.
 
 ---
 

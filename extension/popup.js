@@ -19,6 +19,24 @@ const $ = (id) => document.getElementById(id);
   }
   // ---- videos found on this tab
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+  // the in-page button can be turned off for one website (it sometimes covers that site's own controls)
+  let host = '';
+  try {
+    host = tab && /^https?:/i.test(tab.url || '') ? new URL(tab.url).hostname : '';
+  } catch {
+    /* no page */
+  }
+  if (host) {
+    const { hiddenSites = [] } = await chrome.storage.local.get({ hiddenSites: [] });
+    $('siteRow').hidden = false;
+    $('siteRow').title = host; // shown only as a tooltip
+    $('siteBtn').checked = !hiddenSites.includes(host);
+    $('siteBtn').addEventListener('change', async (e) => {
+      const { hiddenSites: now = [] } = await chrome.storage.local.get({ hiddenSites: [] });
+      const rest = now.filter((h) => h !== host);
+      await chrome.storage.local.set({ hiddenSites: e.target.checked ? rest : [...rest, host].slice(-500) });
+    });
+  }
   const found = tab ? (await chrome.runtime.sendMessage({ type: 'tab-media', tabId: tab.id })) || [] : [];
   $('vCount').textContent = String(found.length);
   const mb = (n) => (n > 0 ? (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.round(n / 1024)} KB`) : '');

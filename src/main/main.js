@@ -32,6 +32,7 @@ const { PowerActions } = require('./power');
 const { Components } = require('./media/components');
 const { probeMedia, isVideoPage, FORMATS_MISSING } = require('./media/media');
 const { Updater } = require('./updater');
+const { syncExtension } = require('./extension-copy');
 const proxyConfig = require('./engine/proxy');
 const { testConnection } = require('./engine/http');
 const I18N = require('../shared/i18n');
@@ -108,13 +109,23 @@ let trayHintShown = false;
 let lastActivity = { active: 0, speed: 0, progress: null };
 const dialogPayloads = new Map();
 
-const extensionDir = () => (app.isPackaged ? path.join(process.resourcesPath, 'extension') : path.join(__dirname, '..', '..', 'extension'));
+const bundledExtensionDir = () => (app.isPackaged ? path.join(process.resourcesPath, 'extension') : path.join(__dirname, '..', '..', 'extension'));
+// The folder to give the browser: a permanent copy (the portable build's own folder is temporary), see extension-copy.js
+let extensionCopy = null;
+const extensionDir = () => extensionCopy || bundledExtensionDir();
 const theme = () => resolveTheme(settings.get().theme);
 
 // ---------------------------------------------------------------- startup
 app.whenReady().then(() => {
   migrateFromOldName();
   const userData = app.getPath('userData');
+  if (app.isPackaged || process.env.DM_EXTENSION_COPY) {
+    try {
+      extensionCopy = syncExtension(bundledExtensionDir(), path.join(userData, 'extension'));
+    } catch (e) {
+      logError('extension', e); // fall back to the bundled folder
+    }
+  }
   settings = new Settings(path.join(userData, 'settings.json'), app.getPath('downloads'), osSecrets());
   proxyConfig.configure({
     getConfig: () => settings.get().proxy,

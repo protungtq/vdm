@@ -4,46 +4,112 @@
   window.__vdmGrabber = true;
 
   let enabled = true;
+  let siteHidden = false; // the user turned the button off for this website (toolbar popup)
   chrome.runtime.sendMessage({ type: 'grabber-config' }, (r) => {
     if (chrome.runtime.lastError) return;
     enabled = !r || r.enabled !== false;
   });
+  const readSites = () => {
+    try {
+      chrome.storage.local.get({ hiddenSites: [] }, (r) => {
+        if (chrome.runtime.lastError) return;
+        siteHidden = (r.hiddenSites || []).includes(location.hostname);
+        if (siteHidden) hide(true);
+      });
+    } catch {
+      /* extension was reloaded: this page's script is orphaned */
+    }
+  };
+  readSites();
+  try {
+    chrome.storage.onChanged.addListener((ch) => ch.hiddenSites && readSites());
+  } catch {
+    /* orphaned */
+  }
 
   const host = document.createElement('div');
   host.style.cssText = 'all:initial;position:fixed;z-index:2147483647;top:0;left:0;width:0;height:0;';
   const root = host.attachShadow({ mode: 'closed' });
   root.innerHTML = `
     <style>
-      button{all:unset;position:fixed;display:none;align-items:center;gap:7px;padding:7px 12px 7px 8px;border-radius:9px;
-        background:rgba(20,18,24,.9);color:#fff;font:600 12px/16px system-ui,"Segoe UI",sans-serif;cursor:pointer;
-        box-shadow:0 4px 18px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.08);backdrop-filter:blur(6px);transition:background .15s;white-space:nowrap}
-      button:hover{background:rgba(115,103,240,.95)}
-      button.show{display:flex}
+      .bar{position:fixed;display:none;align-items:stretch;border-radius:9px;overflow:hidden;
+        background:rgba(20,18,24,.9);color:#fff;font:600 12px/16px system-ui,"Segoe UI",sans-serif;
+        box-shadow:0 4px 18px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.08);backdrop-filter:blur(6px);white-space:nowrap}
+      .bar.show{display:flex}
+      button{all:unset;display:flex;align-items:center;cursor:pointer;transition:background .15s}
+      .main{gap:7px;padding:7px 8px 7px 8px}
+      .main:hover{background:rgba(115,103,240,.95)}
+      .x{width:26px;justify-content:center;color:rgba(255,255,255,.65);font:400 16px/1 system-ui,sans-serif;border-left:1px solid rgba(255,255,255,.12)}
+      .x:hover{background:rgba(255,255,255,.16);color:#fff}
       svg{width:18px;height:18px;flex:none}
+      .main span{padding-right:4px}
     </style>
-    <button type="button" title="Download this video with VDM">
-      <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="28" height="28" rx="8" fill="url(#vdm_grad_g)"/><path d="M14 5.5v11" stroke="white" stroke-width="2.6" stroke-linecap="round"/><path d="M8.5 11.5L14 17l5.5-5.5" stroke="white" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M6.5 21.5h15" stroke="white" stroke-width="2.6" stroke-linecap="round"/><defs><linearGradient id="vdm_grad_g" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop stop-color="#F87171"/><stop offset="1" stop-color="#DC2626"/></linearGradient></defs></svg>
-      <span>Download video</span>
-    </button>`;
-  const btn = root.querySelector('button');
-  const label = root.querySelector('span');
+    <div class="bar">
+      <button type="button" class="main" title="Download this video with VDM">
+        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg"><rect width="28" height="28" rx="8" fill="url(#vdm_grad_g)"/><path d="M14 5.5v11" stroke="white" stroke-width="2.6" stroke-linecap="round"/><path d="M8.5 11.5L14 17l5.5-5.5" stroke="white" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M6.5 21.5h15" stroke="white" stroke-width="2.6" stroke-linecap="round"/><defs><linearGradient id="vdm_grad_g" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse"><stop stop-color="#F87171"/><stop offset="1" stop-color="#DC2626"/></linearGradient></defs></svg>
+        <span>Download video</span>
+      </button>
+      <button type="button" class="x" title="Hide this button">×</button>
+    </div>`;
+  const btn = root.querySelector('.bar');
+  const mainBtn = root.querySelector('.main');
+  const closeBtn = root.querySelector('.x');
+  const label = root.querySelector('.main span');
   (document.body || document.documentElement).appendChild(host);
 
   let current = null;
   let hideTimer = null;
   let overButton = false;
+  const dismissed = new WeakSet(); // videos whose button the user closed (until the page is reloaded)
+  const BTN_W = 190;
+  const BTN_H = 34;
 
+  // Anything the page itself lets you click: its own buttons, links and controls.
+  const INTERACTIVE = 'a[href],button,input,select,textarea,summary,label,[role=button],[role=link],[role=menuitem],[role=tab],[role=slider],[onclick],[tabindex]';
+  const covers = (x, y, video) => {
+    for (const el of document.elementsFromPoint(x, y)) {
+      if (el === host || el === video) continue;
+      if (el.matches && el.matches(INTERACTIVE)) return true;
+      if (el.closest && el.closest(INTERACTIVE) && !el.contains(video)) return true;
+    }
+    return false;
+  };
+  /** The corner of the video where the button doesn't sit on top of the page's own controls. */
+  function spot(v, r) {
+    const left = Math.max(6, r.left);
+    const right = Math.min(innerWidth, r.right);
+    const top = Math.max(6, r.top);
+    const bottom = Math.min(innerHeight, r.bottom);
+    const candidates = [
+      { x: right - BTN_W - 8, y: top + 10 }, // top right
+      { x: left + 10, y: top + 10 }, // top left
+      { x: left + 10, y: bottom - BTN_H - 56 }, // bottom left, above the player's control bar
+      { x: right - BTN_W - 8, y: bottom - BTN_H - 56 }, // bottom right
+      { x: left + (right - left - BTN_W) / 2, y: top + 10 }, // top centre
+    ];
+    for (const c of candidates) {
+      const pts = [[0, 0], [BTN_W, 0], [0, BTN_H], [BTN_W, BTN_H], [BTN_W / 2, BTN_H / 2]];
+      if (c.y < 0 || c.x < 0 || !pts.some(([dx, dy]) => covers(c.x + dx, c.y + dy, v))) return c;
+    }
+    return candidates[0];
+  }
+
+  let placed = { video: null, key: '', c: null };
   const show = (v) => {
     const r = v.getBoundingClientRect();
-    if (r.width < 200 || r.height < 110 || r.bottom < 0 || r.top > innerHeight) return hide();
+    if (siteHidden || dismissed.has(v) || r.width < 200 || r.height < 110 || r.bottom < 0 || r.top > innerHeight) return hide();
     current = v;
-    btn.style.top = `${Math.max(6, r.top + 10)}px`;
-    btn.style.left = `${Math.max(6, Math.min(innerWidth - 160, r.right - 152))}px`;
+    // working out the corner means asking the page what is under it: only when the video moved or changed
+    const key = [r.left, r.top, r.width, r.height].map(Math.round).join(',');
+    if (placed.video !== v || placed.key !== key) placed = { video: v, key, c: spot(v, r) };
+    btn.style.top = `${Math.max(6, placed.c.y)}px`;
+    btn.style.left = `${Math.max(6, Math.min(innerWidth - BTN_W - 6, placed.c.x))}px`;
     btn.classList.add('show');
     clearTimeout(hideTimer);
   };
-  const hide = () => {
-    if (overButton) return;
+  const hide = (force = false) => {
+    if (overButton && !force) return;
+    overButton = false;
     btn.classList.remove('show');
     current = null;
   };
@@ -134,7 +200,14 @@
     };
   }
 
-  btn.addEventListener('click', (e) => {
+  closeBtn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (current) dismissed.add(current);
+    hide(true);
+  });
+
+  mainBtn.addEventListener('click', (e) => {
     e.preventDefault();
     e.stopPropagation();
     const target = current ? describeTarget(current) : null;
