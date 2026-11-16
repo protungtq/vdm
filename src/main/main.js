@@ -178,7 +178,7 @@ app.whenReady().then(() => {
 
   settings.onChange(onSettingsChanged);
   nativeTheme.on('updated', () => {
-    if (tray) tray.setImage(trayImage()); // Windows taskbar switched light/dark
+    if (tray) tray.setImage(trayImage()); // re-apply the tray icon on theme change
     windows.applyTheme();
     windows.broadcast('theme:changed', theme());
   });
@@ -468,7 +468,7 @@ function flushBrowserBurst() {
 }
 
 // ---------------------------------------------------------------- tray
-/** Single-colour tray glyph that contrasts with the Windows taskbar (dark by default). */
+/** Tray icon: a macOS menu-bar template glyph on Mac, the full-colour icon elsewhere. */
 function trayImage() {
   if (IS_MAC) {
     // menu-bar "template" icon: macOS tints it for light/dark menu bars itself
@@ -478,11 +478,10 @@ function trayImage() {
     img.setTemplateImage(true);
     return img;
   }
-  const darkTaskbar = process.platform === 'win32' ? nativeTheme.shouldUseDarkColorsForSystemIntegratedUI !== false : true;
-  const v = darkTaskbar ? 'light' : 'dark';
+  // Full-colour icon (red tile + white arrow): visible on light and dark taskbars alike.
   const img = nativeImage.createEmpty();
-  img.addRepresentation({ scaleFactor: 1, buffer: fs.readFileSync(path.join(ASSETS, `tray-${v}-16.png`)) });
-  img.addRepresentation({ scaleFactor: 2, buffer: fs.readFileSync(path.join(ASSETS, `tray-${v}-32.png`)) });
+  img.addRepresentation({ scaleFactor: 1, buffer: fs.readFileSync(path.join(ASSETS, 'tray-color-16.png')) });
+  img.addRepresentation({ scaleFactor: 2, buffer: fs.readFileSync(path.join(ASSETS, 'tray-color-32.png')) });
   return img;
 }
 

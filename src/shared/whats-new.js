@@ -10,6 +10,26 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   const ENTRIES = [
     {
+      version: '0.2.5',
+      date: '2026-11-16',
+      items: [
+        {
+          icon: 'star',
+          title: { en: 'The logo inside the app uses the new artwork' },
+          text: {
+            en: 'The title bars, dialogs and Settings now show the new red icon with the yellow swoosh and the Vietnamese flag badge, matching the app icon.',
+          },
+        },
+        {
+          icon: 'tool',
+          title: { en: 'Full-colour tray icon on Windows and Linux' },
+          text: {
+            en: 'The system tray now shows the red icon with the white download arrow, clearly visible on light and dark taskbars alike.',
+          },
+        },
+      ],
+    },
+    {
       version: '0.2.4',
       date: '2026-11-16',
       items: [
