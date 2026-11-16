@@ -17,6 +17,9 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
 import java.security.MessageDigest
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicLong
 import java.util.regex.Pattern
 import kotlinx.coroutines.Dispatchers
@@ -125,6 +128,44 @@ object Downloader {
             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
             "VDM",
         )
+
+    /**
+     * Tên file tải về: VDM_ngày_tháng_năm_số-thứ-tự, vd VDM_16_11_2026_001.mp4.
+     * Số thứ tự đếm theo ngày, lưu trong SharedPreferences để không trùng khi
+     * tải nhiều file cùng ngày; sang ngày mới thì đếm lại từ 001.
+     */
+    private const val NAME_PREFS = "vdm_file_names"
+    private const val KEY_LAST_DATE = "last_date"
+    private const val KEY_COUNTER = "counter"
+
+    /**
+     * Cấp tên gốc (chưa có đuôi) cho 1 lượt tải, đảm bảo chưa từng dùng trong
+     * thư mục. Chỉ gọi 1 lần cho mỗi lượt tải ở download(): các lần thử lại
+     * (aria2, không cookie) dùng chung tên này để khỏi sinh file rời rạc.
+     */
+    @Synchronized
+    private fun allocateBaseName(dir: File): String {
+        val today = SimpleDateFormat("dd_MM_yyyy", Locale.US).format(Date())
+        val prefs = appContext?.getSharedPreferences(NAME_PREFS, Context.MODE_PRIVATE)
+        var number = if (prefs != null && prefs.getString(KEY_LAST_DATE, null) == today) {
+            prefs.getInt(KEY_COUNTER, 0) + 1
+        } else {
+            1
+        }
+        // Chốt tên chưa từng dùng trong thư mục (kể cả file dở .part): tránh
+        // trùng khi dữ liệu app bị xóa hoặc có file ngoài tạo sẵn.
+        val used = dir.listFiles()?.map { it.name }?.toSet() ?: emptySet()
+        var candidate: String
+        do {
+            candidate = "VDM_${today}_" + number.toString().padStart(3, '0')
+            number++
+        } while (used.any { it == candidate || it.startsWith("$candidate.") })
+        prefs?.edit()
+            ?.putString(KEY_LAST_DATE, today)
+            ?.putInt(KEY_COUNTER, number - 1)
+            ?.apply()
+        return candidate
+    }
 
     /** Tìm URL đầu tiên trong đoạn văn bản được chia sẻ (kèm cả chữ thì vẫn lấy được link). */
     fun extractUrl(text: String?): String? {
@@ -547,20 +588,23 @@ object Downloader {
             )
         }
         val directUrl = option.directUrl
+        // Cấp tên file 1 lần cho cả lượt tải: mọi đường tải (yt-dlp, tải
+        // thẳng) và mọi lần thử lại đều dùng chung tên này.
+        val baseName = allocateBaseName(dir)
         if (!directUrl.isNullOrBlank()) {
-            downloadDirect(directUrl, dir, option.isAudioOnly, option.referer, onProgress)
+            downloadDirect(directUrl, dir, baseName, option.isAudioOnly, option.referer, onProgress)
             // Trả về response rỗng để giữ nguyên chữ ký hàm cho DownloadService.
             return@withContext YoutubeDLResponse(emptyList(), 0, 0L, "", "")
         }
         val cookieFile = appContext?.let { CookieStore.cookieFileIfAny(it) }
         try {
-            return@withContext downloadViaYtDlp(url, option, dir, cookieFile, onProgress)
+            return@withContext downloadViaYtDlp(url, option, dir, baseName, cookieFile, onProgress)
         } catch (e: Exception) {
             // Lỗi #15161 (xem fetchInfo): thử lại 1 lần không gửi cookie.
             if (isFacebookParseError(e) && cookieFile != null && !cancelRequested) {
                 Log.w(TAG, "facebook download failed with cookies, retrying without", e)
                 try {
-                    return@withContext downloadViaYtDlp(url, option, dir, null, onProgress)
+                    return@withContext downloadViaYtDlp(url, option, dir, baseName, null, onProgress)
                 } catch (retryError: Exception) {
                     throw facebookGuidance(retryError)
                 }
@@ -575,10 +619,11 @@ object Downloader {
         url: String,
         option: VideoFormatOption,
         dir: File,
+        baseName: String,
         cookieFile: File?,
         onProgress: (Float, Long) -> Unit,
     ): YoutubeDLResponse {
-        val request = buildYtDlpRequest(url, option, dir, cookieFile, useAria2 = true)
+        val request = buildYtDlpRequest(url, option, dir, baseName, cookieFile, useAria2 = true)
         try {
             return executeRequest(request, onProgress)
         } catch (ariaError: Exception) {
@@ -589,7 +634,7 @@ object Downloader {
                 throw ariaError
             }
             Log.w(TAG, "aria2 download failed, retrying with built-in downloader", ariaError)
-            val fallback = buildYtDlpRequest(url, option, dir, cookieFile, useAria2 = false)
+            val fallback = buildYtDlpRequest(url, option, dir, baseName, cookieFile, useAria2 = false)
             try {
                 return executeRequest(fallback, onProgress)
             } catch (fallbackError: Exception) {
@@ -607,6 +652,7 @@ object Downloader {
         url: String,
         option: VideoFormatOption,
         dir: File,
+        baseName: String,
         cookieFile: File?,
         useAria2: Boolean,
     ): YoutubeDLRequest {
@@ -615,10 +661,13 @@ object Downloader {
             addOption("--no-mtime")
             addOption("--no-warnings")
             withCookieFile(cookieFile)
-            // Tên file cắt còn tối đa 60 ký tự tiêu đề + id: tiêu đề dài (nhất là
-            // tiếng Việt có dấu, mỗi chữ tới 3 byte) vượt 255 byte sẽ làm aria2
-            // không tạo được file (exit code 16). Kèm id để khỏi trùng tên.
-            addOption("-o", dir.absolutePath + "/%(title).60s-[%(id)s].%(ext)s")
+            // Tên file cố định dạng VDM_ngày_tháng_năm_số-thứ-tự, chỉ để yt-dlp
+            // tự điền đuôi theo định dạng thật (.mp4/.webm/.mp3...). Không lấy
+            // tiêu đề nữa: tiêu đề mạng xã hội hay kèm lượt xem/tương tác
+            // ("229K views · 6.5K reactions | ...") thành tên rác, lại dài quá
+            // 255 byte (tiếng Việt có dấu, mỗi chữ tới 3 byte) làm aria2 không
+            // tạo được file (exit code 16).
+            addOption("-o", dir.absolutePath + "/$baseName.%(ext)s")
             if (option.isAudioOnly) {
                 addOption("--extract-audio")
                 addOption("--audio-format", "mp3")
@@ -658,6 +707,7 @@ object Downloader {
     private suspend fun downloadDirect(
         fileUrl: String,
         dir: File,
+        baseName: String,
         isAudio: Boolean,
         referer: String?,
         onProgress: (Float, Long) -> Unit,
@@ -686,7 +736,7 @@ object Downloader {
         } else {
             downloadSingle(fileUrl, referer, partFile, total, onProgress)
         }
-        val outFile = File(dir, "vdm-${System.currentTimeMillis()}.$ext")
+        val outFile = File(dir, "$baseName.$ext")
         if (!partFile.renameTo(outFile)) {
             partFile.copyTo(outFile, overwrite = true)
             partFile.delete()
