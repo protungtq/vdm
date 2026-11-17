@@ -1,3 +1,5 @@
+> **Đã chuyển repo:** VDM cho Android phát triển tiếp tại [protungtq/vdm-android](https://github.com/protungtq/vdm-android) từ ngày 17/11/2026. Thư mục này chỉ giữ lại để tham khảo; code mới và bản phát hành mới nằm ở repo mới.
+
 # VDM cho Android
 
 Bản mobile gọn nhẹ của VN Download Manager, nằm trong cùng repo với bản

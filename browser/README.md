@@ -1,3 +1,5 @@
+> **Đã chuyển repo:** VN Browser phát triển tiếp tại [protungtq/vn-browser](https://github.com/protungtq/vn-browser) từ ngày 17/11/2026. Thư mục này chỉ giữ lại để tham khảo; code mới và bản phát hành mới nằm ở repo mới.
+
 # VN Browser
 
 Trình duyệt Android gọn nhẹ: nhiều tab, chặn quảng cáo, lịch sử, dấu trang,
