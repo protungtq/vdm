@@ -10,6 +10,20 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   const ENTRIES = [
     {
+      version: '0.2.6',
+      date: '2026-11-21',
+      items: [
+        {
+          icon: 'lang',
+          title: { en: 'Vietnamese interface', vi: 'Giao diện tiếng Việt' },
+          text: {
+            en: 'The whole interface is now available in Vietnamese. Settings → General → Language lets you pick System language, English or Tiếng Việt; new installs follow the system language automatically.',
+            vi: 'Toàn bộ giao diện giờ đã có tiếng Việt. Cài đặt → Chung → Ngôn ngữ cho bạn chọn Ngôn ngữ hệ thống, English hoặc Tiếng Việt; máy mới cài sẽ tự theo ngôn ngữ hệ thống.',
+          },
+        },
+      ],
+    },
+    {
       version: '0.2.5',
       date: '2026-11-16',
       items: [
