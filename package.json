@@ -139,6 +139,7 @@
       ],
       "icon": "build/icon.png",
       "category": "Utility",
+      "maintainer": "TungTQ <contact@game8.info>",
       "artifactName": "VDM-${version}-linux-${arch}.${ext}"
     }
   },
