@@ -147,8 +147,8 @@ jobs:
               VDM-Portable-*.exe) cp "$f" out/VDM-Portable.exe ;;
               VDM-*-mac-arm64.dmg) cp "$f" out/VDM-mac-arm64.dmg ;;
               VDM-*-mac-x64.dmg) cp "$f" out/VDM-mac-x64.dmg ;;
-              VDM-*-linux-x64.AppImage) cp "$f" out/VDM-Linux.AppImage ;;
-              VDM-*-linux-x64.deb) cp "$f" out/VDM-Linux.deb ;;
+              VDM-*-linux-x86_64.AppImage) cp "$f" out/VDM-Linux.AppImage ;;
+              VDM-*-linux-amd64.deb) cp "$f" out/VDM-Linux.deb ;;
             esac
           done
           ls -la out
