@@ -1,12 +1,12 @@
 # Builds VDM and attaches the installers to a GitHub release.
 #  - Pushing a version tag (git tag v0.1.2 && git push origin v0.1.2) creates the release by itself,
 #    using docs/release-notes/v0.1.2.md as its text when that file exists, then builds and attaches
-#    the Windows and Mac versions.
+#    the Windows, Mac and Linux versions.
 #  - Publishing a release by hand on GitHub does the same builds.
 #  - "Run workflow" on the Actions tab builds the chosen branch (normally main) and attaches the files to an
 #    existing release, e.g. to add the Mac version to v0.1.0. "links" only refreshes the fixed-name copies.
 #  - Every release also gets copies with fixed names (VDM-Setup.exe, VDM-Portable.exe, VDM-mac-arm64.dmg,
-#    VDM-mac-x64.dmg), so .../releases/latest/download/<name> always downloads the newest version.
+#    VDM-mac-x64.dmg, VDM-Linux.AppImage, VDM-Linux.deb), so .../releases/latest/download/<name> always downloads the newest version.
 name: Build release
 
 on:
@@ -22,8 +22,8 @@ on:
       platforms:
         description: Which versions to build
         type: choice
-        options: [mac, windows, both, links]
-        default: both
+        options: [mac, windows, linux, all, links]
+        default: all
 
 permissions:
   contents: write
@@ -77,16 +77,20 @@ jobs:
             platform: windows
             command: npx electron-builder --win nsis portable --x64 --publish never
             files: dist/*.exe
+          - os: ubuntu-latest
+            platform: linux
+            command: npx electron-builder --linux AppImage deb --x64 --publish never
+            files: dist/*.AppImage dist/*.deb
     runs-on: ${{ matrix.os }}
     env:
       TAG: ${{ github.event.release.tag_name || inputs.tag || github.ref_name }}
-      WANT: ${{ inputs.platforms || 'both' }}
+      WANT: ${{ inputs.platforms || 'all' }}
     steps:
       - name: Skip platforms that were not asked for
         id: want
         shell: bash
         run: |
-          if [ "$WANT" = "both" ] || [ "$WANT" = "${{ matrix.platform }}" ]; then echo "run=yes" >> "$GITHUB_OUTPUT"; fi
+          if [ "$WANT" = "all" ] || [ "$WANT" = "${{ matrix.platform }}" ]; then echo "run=yes" >> "$GITHUB_OUTPUT"; fi
 
       - uses: actions/checkout@v4
         if: steps.want.outputs.run == 'yes'
@@ -143,6 +147,8 @@ jobs:
               VDM-Portable-*.exe) cp "$f" out/VDM-Portable.exe ;;
               VDM-*-mac-arm64.dmg) cp "$f" out/VDM-mac-arm64.dmg ;;
               VDM-*-mac-x64.dmg) cp "$f" out/VDM-mac-x64.dmg ;;
+              VDM-*-linux-x64.AppImage) cp "$f" out/VDM-Linux.AppImage ;;
+              VDM-*-linux-x64.deb) cp "$f" out/VDM-Linux.deb ;;
             esac
           done
           ls -la out
