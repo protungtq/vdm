@@ -15,9 +15,11 @@
   }
   setTheme(params.get('theme'));
 
-  // ---- texts: all English for now (see shared/i18n.js for adding a language)
+  // ---- texts: English + Vietnamese (see shared/i18n.js for adding a language)
   const { t, digits } = I18N;
-  I18N.setLang(params.get('lang') || 'en');
+  const rawLang = params.get('lang') || 'en';
+  I18N.setLang(rawLang === 'auto' ? I18N.fromLocale(navigator.language) : rawLang);
+  document.documentElement.lang = I18N.getLang();
   const FA = false;
 
   /** Translates the page's fixed text (text nodes, title / placeholder / alt) once it has been parsed. */

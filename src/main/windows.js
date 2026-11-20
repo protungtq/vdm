@@ -33,8 +33,9 @@ const THEMES = {
 };
 
 class Windows {
-  constructor(getTheme) {
+  constructor(getTheme, getLang) {
     this.getTheme = getTheme; // () => 'light' | 'dark'
+    this.getLang = getLang || (() => 'en'); // () => 'en' | 'vi'
     this.main = null;
     this.dialogs = new Set();
     this.progress = new Map(); // download id -> window
@@ -107,7 +108,7 @@ class Windows {
     win.__page = page;
     win.__query = query;
     win.setMenuBarVisibility(false);
-    win.loadFile(path.join(RENDERER, page), { query: { theme: this.getTheme(), ...query } });
+    win.loadFile(path.join(RENDERER, page), { query: { theme: this.getTheme(), lang: this.getLang(), ...query } });
     if (show) win.once('ready-to-show', () => this.reveal(win));
     // Never let a dropped link or stray anchor navigate the app away.
     win.webContents.on('will-navigate', (e, url) => {

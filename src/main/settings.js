@@ -8,6 +8,7 @@ const THEME_IDS = ['light', 'dark', 'day', 'night', 'paper', 'mint', 'ocean', 'n
 function defaults(downloadsDir) {
   return {
     theme: 'light', // a theme id from windows.js THEMES
+    language: 'auto', // 'auto' (system language) | 'en' | 'vi'
     downloadDir: downloadsDir,
     categorize: true, // sort into Video / Music / Compressed / Documents / Programs / General
     connections: 8, // connections per download
@@ -200,6 +201,7 @@ function sanitizePatch(p) {
   if ('speedLimit' in out) out.speedLimit = clamp(out.speedLimit, 0, 10_000_000, 0);
   if ('maxRetries' in out) out.maxRetries = clamp(out.maxRetries, 0, 100, 10);
   if ('theme' in out && !THEME_IDS.includes(out.theme)) delete out.theme;
+  if ('language' in out && !['auto', 'en', 'vi'].includes(out.language)) delete out.language;
   if ('lastSeenVersion' in out) out.lastSeenVersion = /^\d+\.\d+\.\d+$/.test(String(out.lastSeenVersion)) ? String(out.lastSeenVersion) : null;
   if ('listView' in out && !['cards', 'compact'].includes(out.listView)) delete out.listView;
   if ('videoQuality' in out && !['best', '2160', '1080', '720', '480', '360', 'audio'].includes(String(out.videoQuality))) delete out.videoQuality;

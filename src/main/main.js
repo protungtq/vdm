@@ -114,6 +114,11 @@ const bundledExtensionDir = () => (app.isPackaged ? path.join(process.resourcesP
 let extensionCopy = null;
 const extensionDir = () => extensionCopy || bundledExtensionDir();
 const theme = () => resolveTheme(settings.get().theme);
+// Effective UI language: the user's choice, or the system language when 'auto'.
+const lang = () => {
+  const l = settings.get().language || 'auto';
+  return l === 'auto' ? I18N.fromLocale(app.getLocale()) : l;
+};
 
 // ---------------------------------------------------------------- startup
 app.whenReady().then(() => {
@@ -127,12 +132,13 @@ app.whenReady().then(() => {
     }
   }
   settings = new Settings(path.join(userData, 'settings.json'), app.getPath('downloads'), osSecrets());
+  I18N.setLang(lang()); // main-process texts (tray, dialogs, notifications) follow the language
   proxyConfig.configure({
     getConfig: () => settings.get().proxy,
     resolveSystem: (url) => session.defaultSession.resolveProxy(url),
   });
   nativeTheme.themeSource = nativeThemeSource(settings.get().theme);
-  windows = new Windows(theme);
+  windows = new Windows(theme, lang);
   buildAppMenu();
 
   // yt-dlp + ffmpeg for video downloads live next to the user's data (downloaded on first use)
@@ -531,6 +537,7 @@ function onSettingsChanged(s, prev) {
     windows.applyTheme();
     windows.broadcast('theme:changed', theme());
   }
+  if (s.language !== prev.language) I18N.setLang(lang());
   if (s.speedLimit !== prev.speedLimit) manager.setSpeedLimit(s.speedLimit);
   if (s.launchAtStartup !== prev.launchAtStartup) applyLoginItem();
   if (s.maxConcurrent !== prev.maxConcurrent) manager.pump();

@@ -236,6 +236,23 @@ window.SettingsView = (function () {
       group(
         'General',
         'general',
+        row(
+          'Language',
+          'Applies after the window reloads.',
+          select(
+            [
+              ['auto', 'System language'],
+              ['en', 'English'],
+              ['vi', 'Tiếng Việt'],
+            ],
+            (x) => x.language || 'auto',
+            (v) =>
+              save({ language: v }).then(() => {
+                DM.params.set('lang', v);
+                location.search = DM.params.toString();
+              })
+          )
+        ),
         row('Keep running in the tray', 'Closing the window keeps downloads going.', toggle((x) => x.closeToTray, (v) => save({ closeToTray: v }))),
         row(/Macintosh/.test(navigator.userAgent) ? 'Open at login' : 'Launch at Windows startup', /Macintosh/.test(navigator.userAgent) ? 'Starts in the menu bar.' : 'Starts minimized to the tray.', toggle((x) => x.launchAtStartup, (v) => save({ launchAtStartup: v }))),
         row('Notifications', 'Show a notification when a download finishes or fails.', toggle((x) => x.notifications, (v) => save({ notifications: v })))

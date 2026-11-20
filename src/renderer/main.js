@@ -47,6 +47,7 @@ const IS_MAC = document.documentElement.dataset.platform === 'mac';
     renderQueuePanel();
     if (pending) showPower(pending);
     SettingsView.mount($('view-settings'), settings, info);
+    DM.translateDom(); // the settings view mounts after DOMContentLoaded, translate it now
   }
 
   api.on('downloads:added', (d) => {
