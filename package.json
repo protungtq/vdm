@@ -121,6 +121,25 @@
         "width": 540,
         "height": 380
       }
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "category": "Utility",
+      "artifactName": "VDM-${version}-linux-${arch}.${ext}"
     }
   },
   "overrides": {
