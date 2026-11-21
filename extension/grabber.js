@@ -34,8 +34,10 @@
     <style>
       .bar{position:fixed;display:none;align-items:stretch;border-radius:9px;overflow:hidden;
         background:rgba(20,18,24,.9);color:#fff;font:600 12px/16px system-ui,"Segoe UI",sans-serif;
-        box-shadow:0 4px 18px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.08);backdrop-filter:blur(6px);white-space:nowrap}
+        box-shadow:0 4px 18px rgba(0,0,0,.35),0 0 0 1px rgba(255,255,255,.08);backdrop-filter:blur(6px);white-space:nowrap;
+        touch-action:none;cursor:grab}
       .bar.show{display:flex}
+      .bar.dragging,.bar.dragging button{cursor:grabbing}
       button{all:unset;display:flex;align-items:center;cursor:pointer;transition:background .15s}
       .main{gap:7px;padding:7px 8px 7px 8px}
       .main:hover{background:rgba(115,103,240,.95)}
@@ -95,15 +97,41 @@
   }
 
   let placed = { video: null, key: '', c: null };
+  // Where the user dragged the bar to, and for which video: a dragged spot
+  // sticks until another video is hovered. The bar is position:fixed, so
+  // scrolling never moves it back.
+  let manualPos = null;
+  let manualVideo = null;
+  let curPos = { x: 0, y: 0 };
+  let drag = null; // {startX, startY, origX, origY, moved} while dragging
+  const placeAt = (x, y) => {
+    const w = btn.offsetWidth || BTN_W;
+    const h = btn.offsetHeight || BTN_H;
+    curPos = {
+      x: Math.max(6, Math.min(innerWidth - w - 6, x)),
+      y: Math.max(6, Math.min(innerHeight - h - 6, y)),
+    };
+    btn.style.left = `${curPos.x}px`;
+    btn.style.top = `${curPos.y}px`;
+  };
   const show = (v) => {
+    if (drag) return; // a drag in progress owns the position
     const r = v.getBoundingClientRect();
     if (siteHidden || dismissed.has(v) || r.width < 200 || r.height < 110 || r.bottom < 0 || r.top > innerHeight) return hide();
     current = v;
-    // working out the corner means asking the page what is under it: only when the video moved or changed
-    const key = [r.left, r.top, r.width, r.height].map(Math.round).join(',');
-    if (placed.video !== v || placed.key !== key) placed = { video: v, key, c: spot(v, r) };
-    btn.style.top = `${Math.max(6, placed.c.y)}px`;
-    btn.style.left = `${Math.max(6, Math.min(innerWidth - BTN_W - 6, placed.c.x))}px`;
+    if (manualVideo === v && manualPos) {
+      placeAt(manualPos.x, manualPos.y);
+    } else {
+      // working out the corner means asking the page what is under it: only when the video moved or changed
+      const key = [r.left, r.top, r.width, r.height].map(Math.round).join(',');
+      if (placed.video !== v || placed.key !== key) placed = { video: v, key, c: spot(v, r) };
+      curPos = {
+        x: Math.max(6, Math.min(innerWidth - BTN_W - 6, placed.c.x)),
+        y: Math.max(6, placed.c.y),
+      };
+      btn.style.top = `${curPos.y}px`;
+      btn.style.left = `${curPos.x}px`;
+    }
     btn.classList.add('show');
     clearTimeout(hideTimer);
   };
@@ -145,6 +173,48 @@
     overButton = false;
     hideTimer = setTimeout(hide, 900);
   });
+
+  // ---- dragging: the bar can be pulled anywhere on screen ----
+  // A plain click still works: only a move past 5px counts as a drag, and
+  // the click that follows a drag is swallowed so it can't fire the button.
+  let suppressClick = false;
+  btn.addEventListener('pointerdown', (e) => {
+    if (e.button !== undefined && e.button !== 0) return; // primary button / touch only
+    drag = { startX: e.clientX, startY: e.clientY, origX: curPos.x, origY: curPos.y, moved: false };
+    e.preventDefault();
+  });
+  addEventListener('pointermove', (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.startX;
+    const dy = e.clientY - drag.startY;
+    if (!drag.moved && Math.hypot(dx, dy) < 5) return;
+    drag.moved = true;
+    btn.classList.add('dragging');
+    placeAt(drag.origX + dx, drag.origY + dy);
+  }, { passive: true });
+  const endDrag = () => {
+    if (!drag) return;
+    const wasDrag = drag.moved;
+    drag = null;
+    btn.classList.remove('dragging');
+    if (wasDrag && current) {
+      manualVideo = current;
+      manualPos = { ...curPos };
+      suppressClick = true;
+      // The drag's own click (if any) arrives within milliseconds; a real
+      // click later must not be swallowed if the pointer was released off-button.
+      setTimeout(() => { suppressClick = false; }, 500);
+    }
+  };
+  addEventListener('pointerup', endDrag);
+  addEventListener('pointercancel', endDrag);
+  btn.addEventListener('click', (e) => {
+    if (suppressClick) {
+      suppressClick = false;
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, true);
 
   // ---- which video was clicked? (a page can have many: feeds, galleries, grids of previews)
   // When each video started loading, so the background script can match it to the network request that fed it.
