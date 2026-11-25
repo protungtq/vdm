@@ -3,12 +3,10 @@
 const http = require('http');
 
 const PORT = 17842;
-/**
- * Only VDM's own extension may talk to the app. Its ID is fixed by the "key" in
- * extension/manifest.json (the same on every computer); add the Chrome Web Store / Edge Add-ons
- * IDs here once the extension is published there.
- */
-const EXTENSION_IDS = ['dkjdefoooidmkpekcnlllfichlmokncd'];
+const EXTENSION_IDS = [
+  'dkjdefoooidmkpekcnlllfichlmokncd', // Local Chromium build
+  'bpbnhlilbknddmdnagoneogpimlonpep', // Microsoft Edge Add-ons
+];
 const ALLOWED_ORIGINS = new Set(EXTENSION_IDS.flatMap((id) => [`chrome-extension://${id}`, `extension://${id}`]));
 
 /**
