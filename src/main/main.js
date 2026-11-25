@@ -169,11 +169,16 @@ app.whenReady().then(() => {
   const hidden = process.argv.includes('--hidden');
   showMain({ show: !hidden });
 
+  // The browser bridge needs its pairing token before it starts listening.
+  settings.ensureIntegrationToken();
+
   startIntegrationServer({
     version: app.getVersion(),
     isEnabled: () => settings.get().browserIntegration,
     onDownload: (p) => openFromBrowser(p),
     extra: () => ({ videoButton: settings.get().videoButton !== false }),
+    getToken: () => settings.get().integrationToken,
+    onTokenMismatch: () => notifyTokenMismatch(),
   });
 
   clip = watchClipboard({
@@ -357,6 +362,20 @@ function showMain({ show = true } = {}) {
     hookMainClose();
   }
   if (show) showWhatsNewIfDue();
+}
+
+/** The extension tried to send a download without the pairing token (usually an old extension that was never paired): point at Settings once per session. */
+let tokenWarned = false;
+function notifyTokenMismatch() {
+  if (tokenWarned || !settings.get().notifications || !Notification.isSupported()) return;
+  tokenWarned = true;
+  const n = new Notification({
+    title: t('VN Download Manager'),
+    body: t('The browser extension is not paired. Copy the pairing code from Settings → Browser integration into the extension’s options.'),
+    icon: path.join(ASSETS, 'app-256.png'),
+  });
+  n.on('click', () => showMain({ show: true }));
+  n.show();
 }
 
 // ---------------------------------------------------------------- manager -> UI
@@ -809,6 +828,8 @@ function registerIpc() {
     settings.set(patch || {});
     return settings.forRenderer();
   });
+  /** Makes a fresh pairing token for the browser extension (the old one stops working). */
+  h('integration:regenerateToken', () => settings.regenerateIntegrationToken());
   /** "Test" in the proxy settings: a tiny request through the proxy exactly as typed (not saved yet). */
   h('proxy:test', async (_e, form = {}) => {
     const testUrl = 'https://www.gstatic.com/generate_204';
@@ -924,7 +945,7 @@ function registerIpc() {
     const ses = session.fromPartition(part);
     ses.webRequest.onBeforeSendHeaders({ urls: ['http://*/*', 'https://*/*'] }, (d, cb) => {
       const headers = { ...d.requestHeaders };
-      if (q.referrer) headers.Referer = q.referrer;
+      if (q.referrer && sameHost(d.url, q.url)) headers.Referer = q.referrer;
       if (q.cookies && sameHost(d.url, q.url)) headers.Cookie = q.cookies;
       cb({ requestHeaders: headers });
     });

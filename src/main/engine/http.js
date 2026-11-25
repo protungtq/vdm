@@ -76,8 +76,12 @@ function request(urlStr, opts = {}) {
         Connection: 'keep-alive',
         ...headers,
       };
-      // Cookies we were handed belong to the original site only.
-      if (u.host !== origin) delete h.Cookie;
+      // Cookies and the page we came from belong to the original site only:
+      // a redirect to another host must not carry them along.
+      if (u.host !== origin) {
+        delete h.Cookie;
+        delete h.Referer;
+      }
       if (u.username) {
         h.Authorization = 'Basic ' + Buffer.from(`${decodeURIComponent(u.username)}:${decodeURIComponent(u.password)}`).toString('base64');
       }

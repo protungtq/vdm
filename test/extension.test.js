@@ -14,6 +14,8 @@ function loadExtension() {
   const on = (name) => ({ addListener: (fn) => (listeners[name] = fn) });
   const store = {};
   const sent = [];
+  const sentBodies = [];
+  let scriptResult = [];
   const chrome = {
     runtime: { id: 'vdm-ext', onInstalled: on('installed'), onMessage: on('message'), onStartup: on('startup') },
     downloads: {
@@ -32,21 +34,23 @@ function loadExtension() {
       session: { get: async () => ({}), set: async () => {}, remove: async () => {} },
       onChanged: on('storage'),
     },
-    cookies: { getAll: async () => [] },
+    cookies: { getAll: async ({ url = '' } = {}) => (url.includes('://a.com/') ? [{ name: 'session', value: 'A-SECRET' }] : []) },
     contextMenus: { create: () => {}, removeAll: (cb) => cb && cb(), onClicked: on('menu') },
     tabs: { onRemoved: on('tabRemoved'), onUpdated: on('tabUpdated'), query: async () => [], sendMessage: async () => {} },
     action: { setBadgeText: async () => {}, setBadgeBackgroundColor: async () => {}, setBadgeTextColor: async () => {} },
     webRequest: { onHeadersReceived: on('headers'), onBeforeRequest: on('before') },
-    scripting: { executeScript: async () => [] },
+    scripting: { executeScript: async () => scriptResult },
   };
   const fetch = async (url, opts = {}) => {
     if (url.endsWith('/ping')) return { ok: true, json: async () => ({ app: 'download-manager', enabled: true }) };
-    sent.push(JSON.parse(opts.body).url);
+    const body = JSON.parse(opts.body);
+    sentBodies.push(body);
+    sent.push(body.url);
     return { ok: true, json: async () => ({ ok: true }) };
   };
   const ctx = { importScripts: (f) => vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'extension', f), 'utf8'), ctx), chrome, fetch, navigator: { userAgent: 'test' }, console, setTimeout, clearTimeout, AbortController, URL, Date, Promise, JSON, Math, Set, Map };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '..', 'extension', 'background.js'), 'utf8'), ctx);
-  return { created: listeners.created, sent };
+  return { created: listeners.created, sent, sentBodies, menu: listeners.menu, setScriptResult: (v) => (scriptResult = v) };
 }
 
 const item = (id, over = {}) => ({
@@ -77,4 +81,18 @@ test('downloads from the browser history are ignored when the browser starts', a
   assert.deepStrictEqual(ext.sent, []);
   await ext.created(item(6));
   assert.deepStrictEqual(ext.sent, ['https://example.com/file6.zip'], 'a real new download still works');
+});
+
+test('download-all sends the first link\'s cookies only when every link shares its host', async () => {
+  const ext = loadExtension();
+  const tab = { id: 7, url: 'https://a.com/page' };
+  ext.setScriptResult([{ result: ['https://a.com/one.zip', 'https://a.com/two.zip'] }]);
+  await ext.menu({ menuItemId: 'dm-all' }, tab);
+  assert.strictEqual(ext.sentBodies.length, 1);
+  assert.strictEqual(ext.sentBodies[0].cookies, 'session=A-SECRET');
+
+  ext.setScriptResult([{ result: ['https://a.com/one.zip', 'https://b.com/two.zip'] }]);
+  await ext.menu({ menuItemId: 'dm-all' }, tab);
+  assert.strictEqual(ext.sentBodies.length, 2);
+  assert.strictEqual(ext.sentBodies[1].cookies, '', 'cookies of one site must not ride along to another');
 });

@@ -1,5 +1,6 @@
 'use strict';
 
+const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 
@@ -26,6 +27,11 @@ function defaults(downloadsDir) {
     showCompleteWindow: true,
     clipboardWatch: true,
     browserIntegration: true,
+    // Pairing token for the browser extension (X-VDM-Token on POST /download).
+    // A random secret, generated on first run; the app shows it in Settings so
+    // the user can paste it into the extension once. It only ever travels on
+    // 127.0.0.1 and is never sent anywhere else.
+    integrationToken: '',
     notifications: true,
     preventSleep: true,
     closeToTray: true,
@@ -73,6 +79,22 @@ class Settings {
 
   get() {
     return this.data;
+  }
+
+  /** The browser-bridge token, created on first run (a random secret the extension must send). */
+  ensureIntegrationToken() {
+    if (!this.data.integrationToken) {
+      this.data.integrationToken = crypto.randomBytes(32).toString('hex');
+      this.save();
+    }
+    return this.data.integrationToken;
+  }
+
+  /** Makes a fresh token; the extension must be paired again with the new one. */
+  regenerateIntegrationToken() {
+    this.data.integrationToken = crypto.randomBytes(32).toString('hex');
+    this.save();
+    return this.data.integrationToken;
   }
 
   set(patch) {
@@ -194,6 +216,8 @@ function sanitizeProxy(p) {
 
 function sanitizePatch(p) {
   const out = { ...p };
+  // The pairing token is main-process only: the renderer shows it, never sets it.
+  if ('integrationToken' in out) delete out.integrationToken;
   if ('proxy' in out) out.proxy = out.proxy && typeof out.proxy === 'object' ? sanitizeProxy(out.proxy) : {};
   if ('queues' in out) out.queues = sanitizeQueues(out.queues);
   if ('connections' in out) out.connections = clamp(out.connections, 1, 32, 8);

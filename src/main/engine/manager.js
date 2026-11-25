@@ -513,11 +513,17 @@ class Manager extends EventEmitter {
       const days = Array.isArray(sch.days) ? sch.days : DAY_KEYS;
       const start = sch.enabled ? toMin(sch.startTime) : null;
       const stop = sch.stopEnabled ? toMin(sch.stopTime) : null;
-      if (start !== null && days.includes(now.getDay()) && hm >= start && hm < start + 2 && st.startedToday !== today) {
+      // A queue runs for [start, stop): if the machine slept through the start
+      // (or VDM launched late), start it whenever we notice we are inside the
+      // window instead of only in its first two minutes. Without a stop time
+      // the window runs to the end of the day.
+      const end = stop !== null ? stop : 24 * 60;
+      if (start !== null && days.includes(now.getDay()) && hm >= start && hm < end && st.startedToday !== today) {
         st.startedToday = today;
         if (!st.running && this.queueItems(q.id).length) this.startQueue(q.id);
       }
-      if (stop !== null && hm >= stop && hm < stop + 2 && st.stoppedToday !== today) {
+      // Same for the stop: a machine that slept through it stops the queue on wake.
+      if (stop !== null && hm >= stop && st.stoppedToday !== today) {
         st.stoppedToday = today;
         if (st.running) this.stopQueue(q.id);
       }

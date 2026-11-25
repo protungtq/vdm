@@ -103,6 +103,33 @@ window.SettingsView = (function () {
     return el('div', { class: 'set-row' }, el('div', { class: 'set-text' }, el('div', { class: 'set-label', text: 'Updates' }), hint), btn);
   }
 
+  /** The pairing code the extension must send: shown here, pasted once into the extension's options. */
+  function tokenRow() {
+    const input = el('input', { type: 'text', readonly: true, class: 'field', style: 'flex:1;min-width:0;font-family:ui-monospace,monospace' });
+    input.addEventListener('click', () => input.select());
+    const copy = el('button', { class: 'btn btn-outline text-only', style: 'height:30px;padding:0 12px;font-size:13px', text: 'Copy' });
+    copy.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(input.value);
+        copy.textContent = t('Copied');
+        setTimeout(() => (copy.textContent = t('Copy')), 1500);
+      } catch {
+        input.select();
+      }
+    });
+    const fresh = el('button', { class: 'btn btn-outline text-only', style: 'height:30px;padding:0 12px;font-size:13px', text: 'New code' });
+    fresh.addEventListener('click', async () => {
+      input.value = (await api.invoke('integration:regenerateToken')) || '';
+    });
+    bind.push({ apply: (x) => (input.value = x.integrationToken || '') });
+    return el(
+      'div',
+      { class: 'set-row' },
+      el('div', { class: 'set-text' }, el('div', { class: 'set-label', text: 'Pairing code for the extension' }), el('div', { class: 'set-hint', text: 'Paste this once into the extension’s options page. Anyone who knows it can send downloads to VDM from this computer.' })),
+      el('div', { style: 'display:flex;gap:6px;align-items:center;min-width:0;flex:1' }, input, copy, fresh)
+    );
+  }
+
   function themePicker() {
     const cards = THEMES.map(([id, name]) => {
       const card = el('button', { class: 'theme-card', title: t('{name} theme', { name: t(name) }), onclick: () => save({ theme: id }) }, miniPreview(id), el('span', { text: name }));
@@ -290,6 +317,7 @@ window.SettingsView = (function () {
         'Browser integration',
         'browser',
         row('Catch downloads from the browser', 'Chrome / Edge / Brave downloads are sent to VDM.', toggle((x) => x.browserIntegration, (v) => save({ browserIntegration: v }))),
+        tokenRow(),
         el(
           'ol',
           { class: 'steps' },

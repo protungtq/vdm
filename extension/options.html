@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>VDM options</title>
+    <style>
+      body { font: 14px/1.5 system-ui, sans-serif; color: #191919; max-width: 560px; margin: 32px auto; padding: 0 16px; }
+      h1 { font-size: 18px; margin: 0 0 4px; }
+      p { margin: 8px 0; color: #555; }
+      label { display: block; font-weight: 600; margin: 20px 0 6px; }
+      .row { display: flex; gap: 8px; }
+      input { flex: 1; font: 13px/1.4 ui-monospace, monospace; padding: 8px; border: 1px solid #ccc; border-radius: 6px; }
+      button { padding: 8px 14px; border: 1px solid #ccc; border-radius: 6px; background: #fff; cursor: pointer; font-size: 13px; }
+      button.primary { background: #d92d20; border-color: #d92d20; color: #fff; }
+      #status { margin-top: 12px; min-height: 20px; font-size: 13px; }
+      #status.ok { color: #067647; }
+      #status.err { color: #b42318; }
+      code { background: #f2f2f2; padding: 1px 5px; border-radius: 4px; font-size: 13px; }
+      ol { padding-left: 20px; color: #555; }
+      ol li { margin: 4px 0; }
+    </style>
+  </head>
+  <body>
+    <h1>VN Download Manager — options</h1>
+    <p>The desktop app only accepts downloads from a paired extension. Paste the pairing code below once and the extension will send it with every download.</p>
+    <ol>
+      <li>Open VDM on your computer → <b>Settings</b> → <b>Browser integration</b>.</li>
+      <li>Copy the <b>pairing code</b> shown there.</li>
+      <li>Paste it here and click <b>Save</b>.</li>
+    </ol>
+    <label for="token">Pairing code</label>
+    <div class="row">
+      <input id="token" type="text" placeholder="Paste the code from the VDM app…" autocomplete="off" spellcheck="false" />
+      <button id="save" class="primary">Save</button>
+      <button id="test">Test connection</button>
+    </div>
+    <div id="status"></div>
+    <p>The code only ever travels to the VDM app on your own computer (<code>127.0.0.1</code>). If it stops working, make a new code in the app's Settings and paste it here again.</p>
+    <script src="options.js"></script>
+  </body>
+</html>

@@ -14,9 +14,12 @@ const ALLOWED_ORIGINS = new Set(EXTENSION_IDS.flatMap((id) => [`chrome-extension
  * Local bridge for the browser extension (127.0.0.1 only).
  *   GET  /ping       -> { app, version, enabled }
  *   POST /download   -> { url | urls[], filename?, referrer?, cookies?, userAgent?, size? }
- * Only requests from VDM's own browser extension are accepted (see ALLOWED_ORIGINS).
+ * Only requests from VDM's own browser extension are accepted (see ALLOWED_ORIGINS),
+ * and POST /download also needs the pairing token the app shows in Settings
+ * (header X-VDM-Token). Origin alone is not authentication: any program on the
+ * machine can fake it, a random token cannot be guessed.
  */
-function startIntegrationServer({ version, isEnabled, onDownload, extra = () => ({}) }) {
+function startIntegrationServer({ version, isEnabled, onDownload, extra = () => ({}), getToken = () => '', onTokenMismatch = () => {} }) {
   const server = http.createServer((req, res) => {
     const origin = req.headers.origin || '';
     const host = String(req.headers.host || '');
@@ -42,6 +45,14 @@ function startIntegrationServer({ version, isEnabled, onDownload, extra = () => 
     if (req.method === 'GET' && req.url === '/ping') return json(200, { app: 'download-manager', version, enabled: isEnabled(), ...extra() });
     if (req.method === 'POST' && req.url === '/download') {
       if (!/application\/json/.test(req.headers['content-type'] || '')) return json(415, { error: 'json required' });
+      // The pairing token proves the sender is the extension the user paired,
+      // not just any program on the machine faking the Origin header. No token
+      // configured yet (very first run) falls back to the Origin check alone.
+      const token = getToken();
+      if (token && req.headers['x-vdm-token'] !== token) {
+        onTokenMismatch();
+        return json(403, { error: 'bad token' });
+      }
       let body = '';
       req.on('data', (c) => {
         body += c;

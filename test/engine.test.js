@@ -319,16 +319,48 @@ test('each queue follows its own schedule', async () => {
     { id: 'main', name: 'Main queue', maxConcurrent: 1, schedule: { enabled: true, startTime: '02:00', stopEnabled: false, stopTime: '08:00', days: day, afterDone: 'none' } },
     { id: 'eve', name: 'Evening', maxConcurrent: 1, schedule: { enabled: true, startTime: '20:30', stopEnabled: true, stopTime: '23:00', days: day, afterDone: 'sleep' } },
   ];
-  const { m } = makeManager({ queues });
+  // No startTimers here: the live tick would evaluate the schedule against the
+  // real clock, and with the widened [start, stop) window a queue could start
+  // at construction and break the assertions below.
+  const dir = fs.mkdtempSync(path.join(tmp, 'sched-'));
+  const settings = { downloadDir: dir, categorize: false, connections: 2, maxConcurrent: 1, maxRetries: 4, speedLimit: 0, queues };
+  const m = new Manager({ file: path.join(dir, 'downloads.json'), getSettings: () => settings });
   m.add({ url: 'http://127.0.0.1:9/a.bin', mode: 'queue' });
   m.add({ url: 'http://127.0.0.1:9/b.bin', mode: 'queue', queueId: 'eve' });
-  const at = (h, min) => new Date(2026, 10, 12, h, min);
-  m.checkSchedule(at(20, 30));
-  assert.deepStrictEqual(m.queueState().queues, { main: false, eve: true });
+  const at = (d, h, min) => new Date(2026, 10, d, h, min);
+  // 20:30 — main has no stop time so it runs from 02:00 to the end of the day.
+  m.checkSchedule(at(12, 20, 30));
+  assert.deepStrictEqual(m.queueState().queues, { main: true, eve: true });
   await m.stopQueue('eve');
-  m.checkSchedule(at(2, 0));
+  // Next day at 02:00: main starts again (a new day), eve is still out of its window.
+  m.checkSchedule(at(13, 2, 0));
   assert.deepStrictEqual(m.queueState().queues, { main: true, eve: false });
   await m.shutdown();
+});
+
+test('scheduler catches up after sleep or a late launch', async () => {
+  const day = [0, 1, 2, 3, 4, 5, 6];
+  const queues = [
+    { id: 'main', name: 'Main queue', maxConcurrent: 1, schedule: { enabled: true, startTime: '02:00', stopEnabled: true, stopTime: '08:00', days: day, afterDone: 'none' } },
+  ];
+  const dir = fs.mkdtempSync(path.join(tmp, 'sched2-'));
+  const settings = { downloadDir: dir, categorize: false, connections: 2, maxConcurrent: 1, maxRetries: 4, speedLimit: 0, queues };
+  const m = new Manager({ file: path.join(dir, 'downloads.json'), getSettings: () => settings });
+  m.add({ url: 'http://127.0.0.1:9/a.bin', mode: 'queue' });
+  const at = (h, min) => new Date(2026, 10, 12, h, min);
+  // 03:30 — ninety minutes after the start, e.g. the machine just woke up.
+  m.checkSchedule(at(3, 30));
+  assert.strictEqual(m.queueState().queues.main, true, 'starts late, inside the window');
+  // Past the stop: a queue left running when the machine slept through the stop is stopped on wake.
+  m.checkSchedule(at(8, 30));
+  assert.strictEqual(m.queueState().queues.main, false, 'stops late, after the stop time');
+  // A fresh manager (a new launch) never starts after the stop either.
+  const m2 = new Manager({ file: path.join(dir, 'd2.json'), getSettings: () => settings });
+  m2.add({ url: 'http://127.0.0.1:9/a.bin', mode: 'queue' });
+  m2.checkSchedule(at(8, 30));
+  assert.strictEqual(m2.queueState().queues.main, false, 'never starts after the stop');
+  await m.shutdown();
+  await m2.shutdown();
 });
 
 test('old single-queue settings become the "Main queue"', () => {

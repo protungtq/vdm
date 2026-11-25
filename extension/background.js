@@ -45,13 +45,39 @@ async function cookiesFor(url) {
   }
 }
 
+async function getBridgeToken() {
+  if (bridgeToken === null) {
+    const { bridgeToken: saved = '' } = await chrome.storage.local.get('bridgeToken');
+    bridgeToken = saved || '';
+  }
+  return bridgeToken;
+}
+
+// The pairing token the desktop app shows in Settings → Browser integration.
+// Without it the app refuses downloads: any program on the machine can fake
+// the extension's Origin header, but only the paired extension knows this.
+let bridgeToken = null;
+let tokenHelpShown = false;
+chrome.storage.onChanged.addListener((changes, area) => {
+  if (area === 'local' && changes.bridgeToken) bridgeToken = changes.bridgeToken.newValue || '';
+});
+
 async function send(payload) {
   try {
+    const headers = { 'Content-Type': 'application/json' };
+    const token = await getBridgeToken();
+    if (token) headers['X-VDM-Token'] = token;
     const r = await fetch(`${APP}/download`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ userAgent: navigator.userAgent, ...payload }),
     });
+    if (r.status === 403 && !tokenHelpShown) {
+      // The app refused us: no pairing token yet (or the wrong one). Open the
+      // options page once so the user can paste the code from the app.
+      tokenHelpShown = true;
+      chrome.runtime.openOptionsPage();
+    }
     return r.ok;
   } catch {
     return false;
@@ -124,7 +150,17 @@ async function sendAllLinks(tab) {
   });
   const urls = [...new Set((res && res.result) || [])].filter((u) => /^https?:/i.test(u) && FILE_EXT.test(u));
   if (!urls.length) return;
-  await send({ urls, referrer: tab.url || '', cookies: await cookiesFor(urls[0]) });
+  // Cookies belong to one site only: only send the first link's cookies when
+  // every link in the batch is on that same host, otherwise send none.
+  const hostOf = (u) => {
+    try {
+      return new URL(u).host;
+    } catch {
+      return '';
+    }
+  };
+  const sameHost = urls.every((u) => hostOf(u) === hostOf(urls[0]));
+  await send({ urls, referrer: tab.url || '', cookies: sameHost ? await cookiesFor(urls[0]) : '' });
 }
 
 // popup messages

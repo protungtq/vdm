@@ -33,6 +33,7 @@ const INVOKE = new Set([
   'window:minimize',
   'window:resize',
   'extension:openFolder',
+  'integration:regenerateToken',
   'power:cancel',
   'power:state',
   'shell:openPath',

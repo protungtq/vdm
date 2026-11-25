@@ -17,7 +17,7 @@
   "private": true,
   "scripts": {
     "start": "electron .",
-    "test": "node --test --test-concurrency=1 test/engine.test.js test/media.test.js test/updater.test.js test/extension.test.js test/server.test.js test/proxy.test.js test/extension-copy.test.js",
+    "test": "node --test --test-concurrency=1 test/engine.test.js test/media.test.js test/updater.test.js test/extension.test.js test/server.test.js test/proxy.test.js test/extension-copy.test.js test/http.test.js",
     "icons": "node scripts/make-icons.js",
     "ui-check": "node scripts/ui-check.js shots light",
     "dist:win": "electron-builder --win nsis portable --x64 --publish never",
