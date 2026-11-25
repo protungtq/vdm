@@ -6,6 +6,7 @@ const PORT = 17842;
 const EXTENSION_IDS = [
   'dkjdefoooidmkpekcnlllfichlmokncd', // Local Chromium build
   'bpbnhlilbknddmdnagoneogpimlonpep', // Microsoft Edge Add-ons
+  'jnbjokkpimbnnilkoaagofckhbdkgnmp', // Opera Add-ons
 ];
 const ALLOWED_ORIGINS = new Set(EXTENSION_IDS.flatMap((id) => [`chrome-extension://${id}`, `extension://${id}`]));
 
