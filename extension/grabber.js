@@ -251,8 +251,16 @@
     return null;
   }
 
+  // The page itself is this video's page (YouTube watch / Shorts, Facebook
+  // Reel, X post, …): the link is the page's own URL. Hunting for a link in
+  // the DOM on such a page only finds other videos (YouTube's "Up next"
+  // list), because the player has no permalink around it and the walk climbs
+  // into containers that hold them.
+  const SINGLE_VIDEO_PAGE = /[?&](v|video|video_id|vid)=|\/(watch|shorts|embed|reels?|clips?|status|statuses|v)([/?#.]|$)/i;
+  const pageIsVideo = SINGLE_VIDEO_PAGE.test(location.pathname + location.search);
+
   function describeTarget(v) {
-    const card = cardOf(v);
+    const card = pageIsVideo ? null : cardOf(v);
     const src = v ? v.currentSrc || v.src || '' : '';
     let title = '';
     if (card) {
@@ -261,7 +269,7 @@
     }
     return {
       src: /^https?:/i.test(src) ? src : '', // blob: and MediaSource URLs only exist inside the page
-      permalink: card ? card.link : '',
+      permalink: pageIsVideo ? location.href.split('#')[0] : (card ? card.link : ''),
       title: title || document.title,
       many: [...document.querySelectorAll('video')].filter(isBig).length > 1,
       // files that other videos on the page are playing: those are never this video's
